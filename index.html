@@ -37,12 +37,13 @@
             display: none; flex-direction: column; gap: 10px; margin-top: 10px;
         }
         .timer-box {
-            background: #ef4444; color: white; padding: 10px 20px; border-radius: 30px;
-            font-size: 1.5rem; font-weight: bold; margin-bottom: 5px; box-shadow: 0 4px 6px rgba(239,68,68,0.3);
-            display: flex; align-items: center; gap: 10px;
+            background: #9ca3af; color: white; padding: 10px 20px; border-radius: 30px;
+            font-size: 1.5rem; font-weight: bold; margin-bottom: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            display: flex; align-items: center; gap: 10px; justify-content: center;
+            transition: background 0.3s;
         }
         .alert-box {
-            color: #ef4444; font-weight: bold; height: 24px; margin-bottom: 5px; font-size: 1.1rem;
+            color: #ef4444; font-weight: bold; height: 24px; margin-bottom: 5px; font-size: 1.1rem; text-align: center;
         }
         .board {
             display: grid; grid-template-columns: repeat(8, 1fr);
@@ -65,13 +66,15 @@
         .piece.selected { transform: scale(1.15); box-shadow: 0 0 15px yellow; border: 2px solid yellow; z-index: 10; }
         .piece.king::after { content: '👑'; font-size: 1.5rem; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5)); }
         
-        .status { margin: 5px 0; font-size: 1.2rem; font-weight: bold; }
+        .status { margin: 5px 0; font-size: 1.2rem; font-weight: bold; text-align: center; }
         .btn {
-            background-color: #2563eb; color: white; border: none; padding: 10px 20px;
-            border-radius: 8px; font-size: 1rem; cursor: pointer; width: 100%; font-weight: bold;
+            color: white; border: none; padding: 10px 20px;
+            border-radius: 8px; font-size: 1rem; cursor: pointer; width: 100%; font-weight: bold; margin-top: 5px;
         }
-        .btn:active { background-color: #1d4ed8; }
+        .btn-blue { background-color: #2563eb; }
+        .btn-blue:active { background-color: #1d4ed8; }
         .btn-green { background-color: #16a34a; }
+        .btn-orange { background-color: #d97706; }
     </style>
 </head>
 <body>
@@ -87,7 +90,7 @@
     </div>
 
     <div class="timer-box" id="timerBox">
-        ⏱️ <span id="timeDisplay">30</span> چرکە
+        ⏱️ <span id="timeDisplay">وەستاوە</span>
     </div>
 
     <div class="controls">
@@ -106,7 +109,7 @@
         </div>
 
         <div class="online-box" id="onlineContainer">
-            <div style="font-size: 0.9rem; color: #0369a1; font-weight: bold;">کۆدەکەی خۆت بدە بە هاوڕێکەت، یان کۆدەکەی ئەو لێرە بنووسە بۆ بەستنەوە.</div>
+            <div style="font-size: 0.9rem; color: #0369a1; font-weight: bold;">کۆدەکەی خۆت بدە بە هاوڕێکەت، یان هی ئەو بنووسە.</div>
             <div style="display: flex; justify-content: space-between;">
                 <span>کۆدی تۆ:</span>
                 <strong id="myCode" style="font-size: 1.2rem; color: #b91c1c; letter-spacing: 2px;">دروستکردن...</strong>
@@ -125,11 +128,12 @@
             <input type="color" id="color2" value="#f8f9fa" onchange="updateColors()">
         </div>
         
-        <button class="btn" onclick="resetGame(true)">دەستپێکردنەوەی یاری</button>
+        <button id="togglePlayBtn" class="btn btn-green" onclick="togglePlay()">دەستپێکردنی یاری ▶️</button>
+        <button class="btn btn-blue" onclick="resetGame(true)">ڕیفرێشکردنەوەی تەختە 🔄</button>
     </div>
 
     <div id="alertBox" class="alert-box"></div>
-    <div id="status" class="status">نۆرەی یاریزانی خوارەوەیە (ڕەش)</div>
+    <div id="status" class="status">چاوەڕێی دەستپێکردن...</div>
 
     <div class="board" id="board"></div>
 
@@ -176,7 +180,8 @@
         let currentPlayer = 1; 
         let selectedPiece = null;
         let validMoves = [];
-        let isMultiCapturing = false; // یاسای زنجیرە خواردن
+        let isMultiCapturing = false; 
+        let isPlaying = false; // کۆنتڕۆڵی دەستپێکردن/وەستان
         const EMPTY = 0, P1 = 1, P2 = 2, P1_KING = 3, P2_KING = 4;
 
         let timerInterval;
@@ -191,13 +196,34 @@
         function showAlert(msg) {
             const box = document.getElementById('alertBox');
             box.innerText = msg;
-            setTimeout(() => box.innerText = "", 3000);
+            setTimeout(() => box.innerText = "", 3500);
         }
 
         function updateColors() {
             document.documentElement.style.setProperty('--player1-color', document.getElementById('color1').value);
             document.documentElement.style.setProperty('--player2-color', document.getElementById('color2').value);
-            updateStatus();
+            if(isPlaying) updateStatus();
+        }
+
+        function togglePlay() {
+            isPlaying = !isPlaying;
+            const btn = document.getElementById('togglePlayBtn');
+            if (isPlaying) {
+                btn.innerText = "وەستاندنی یاری ⏸️";
+                btn.className = "btn btn-orange";
+                updateStatus();
+                startTimer();
+                const mode = document.getElementById('gameMode').value;
+                if (mode === 'ai' && currentPlayer === 2) {
+                    setTimeout(makeAIMove, 600);
+                }
+            } else {
+                btn.innerText = "دەستپێکردنەوە ▶️";
+                btn.className = "btn btn-green";
+                clearInterval(timerInterval);
+                document.getElementById('timerBox').style.background = "#9ca3af";
+                document.getElementById('status').innerText = "یاری وەستاوە...";
+            }
         }
 
         function changeMode() {
@@ -243,6 +269,7 @@
             isOnline = true;
             conn.on('data', function(data) {
                 if(data.type === 'move') {
+                    if(!isPlaying) { isPlaying = true; document.getElementById('togglePlayBtn').innerText = "وەستاندنی یاری ⏸️"; document.getElementById('togglePlayBtn').className = "btn btn-orange"; }
                     selectedPiece = { r: data.selectedR, c: data.selectedC, val: board[data.selectedR][data.selectedC] };
                     calculateValidMoves();
                     executeMove(data.r, data.c, data.selectedR, data.selectedC, false);
@@ -352,6 +379,11 @@
         }
 
         function onCellClick(r, c, isHighlight) {
+            if (!isPlaying) {
+                showAlert("تکایە سەرەتا کلیک لە 'دەستپێکردنی یاری' بکە!");
+                return;
+            }
+
             const mode = document.getElementById('gameMode').value;
             if (mode === 'ai' && currentPlayer === 2) return;
             if (isOnline) {
@@ -381,7 +413,6 @@
             const isP1Piece = (val === P1 || val === P1_KING);
             if ((currentPlayer === 1 && !isP1Piece) || (currentPlayer === 2 && isP1Piece)) return;
 
-            // یاسای ناچاری: ئەگەر بەردێک هەبێت بخورێت، ناتوانیت بەردی تر بجووڵێنیت
             let mandatoryPieces = getAllMandatoryCaptures(currentPlayer);
             if (mandatoryPieces.length > 0) {
                 let isMandatory = mandatoryPieces.some(p => p.r === r && p.c === c);
@@ -401,10 +432,63 @@
             if (!selectedPiece) return;
             let caps = getCaptureMovesForPiece(selectedPiece.r, selectedPiece.c);
             if (caps.length > 0) {
-                validMoves = caps; // ئەگەر خواردن هەبێت، تەنها دەبێت بخوات
+                validMoves = caps; 
             } else {
                 validMoves = getNormalMovesForPiece(selectedPiece.r, selectedPiece.c);
             }
+        }
+
+        // کۆتایی یاری و ئەنجامەکان
+        function declareWinner(losingPlayer) {
+            isPlaying = false;
+            clearInterval(timerInterval);
+            document.getElementById('togglePlayBtn').innerText = "یاری تەواو بوو 🏁";
+            document.getElementById('togglePlayBtn').className = "btn btn-blue";
+            document.getElementById('timerBox').style.background = "#9ca3af";
+            document.getElementById('timeDisplay').innerText = "کۆتایی";
+            document.getElementById('status').innerText = "ئەنجامی کۆتایی ڕاگەیەندرا";
+
+            const mode = document.getElementById('gameMode').value;
+            
+            // ئەگەر بەرامبەر کۆمپیوتەر بێت یان ئۆنلاین
+            if (mode === 'ai' || mode === 'online') {
+                let iAmPlayer = amIPlayer1 ? 1 : 2;
+                if (mode === 'ai') iAmPlayer = 1; // لەگەڵ AI تۆ هەمیشە یاریزانی یەکیت
+                
+                if (losingPlayer === iAmPlayer) {
+                    setTimeout(() => alert("بەداخەوە دووبارە هەوڵدەوە هیچ نیە خەمێ مەخۆ حاجی"), 300);
+                } else {
+                    setTimeout(() => alert("پیرۆزە یاریەکەت بردەوە"), 300);
+                }
+            } else {
+                // دوو یاریزان لەسەر یەک شاشە
+                let winner = losingPlayer === 1 ? "سەرەوە" : "خوارەوە";
+                setTimeout(() => alert(`پیرۆزە یاریزانی ${winner} یاریەکەی بردەوە!`), 300);
+            }
+        }
+
+        function checkGameOver() {
+            let hasMoves = false;
+            let mandatories = getAllMandatoryCaptures(currentPlayer);
+            if (mandatories.length > 0) {
+                hasMoves = true;
+            } else {
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        const val = board[r][c];
+                        if ((currentPlayer === 1 && (val === P1 || val === P1_KING)) || 
+                            (currentPlayer === 2 && (val === P2 || val === P2_KING))) {
+                            let norms = getNormalMovesForPiece(r, c);
+                            if (norms.length > 0) hasMoves = true;
+                        }
+                    }
+                }
+            }
+            if (!hasMoves) {
+                declareWinner(currentPlayer);
+                return true;
+            }
+            return false;
         }
 
         function executeMove(toR, toC, fromR, fromC, broadcast = false) {
@@ -431,7 +515,7 @@
             if (currentPlayer === 1 && toR === 0 && board[toR][toC] === P1) { board[toR][toC] = P1_KING; promoted = true; }
             if (currentPlayer === 2 && toR === 7 && board[toR][toC] === P2) { board[toR][toC] = P2_KING; promoted = true; }
 
-            // === یاسای زنجیرە خواردن ===
+            // زنجیرە خواردن
             if (wasCapture && !promoted) {
                 let furtherCaps = getCaptureMovesForPiece(toR, toC);
                 if (furtherCaps.length > 0) {
@@ -439,16 +523,14 @@
                     selectedPiece = { r: toR, c: toC, val: board[toR][toC] };
                     validMoves = furtherCaps;
                     drawBoard();
-                    startTimer(); // کاتژمێر سفر بکەرەوە بۆ خواردنی دووەم
-                    
+                    startTimer(); 
                     if (document.getElementById('gameMode').value === 'ai' && currentPlayer === 2) {
-                        setTimeout(makeAIMove, 600); // AI بەردەوام دەبێت لە خواردن
+                        setTimeout(makeAIMove, 600); 
                     }
-                    return; // نۆرە مەگۆڕە!
+                    return; 
                 }
             }
 
-            // ئەگەر خواردنی تر نەما، نۆرە دەگۆڕێت
             isMultiCapturing = false;
             selectedPiece = null;
             validMoves = [];
@@ -456,10 +538,13 @@
             
             updateStatus();
             drawBoard();
+            
+            if (checkGameOver()) return; // پشکنین بۆ کۆتایی یاری
+
             startTimer();
 
             const mode = document.getElementById('gameMode').value;
-            if (mode === 'ai' && currentPlayer === 2) {
+            if (mode === 'ai' && currentPlayer === 2 && isPlaying) {
                 setTimeout(makeAIMove, 600);
             }
         }
@@ -467,6 +552,8 @@
         // === کاتژمێر ===
         function startTimer() {
             clearInterval(timerInterval);
+            if (!isPlaying) return; // ئەگەر یاری وەستابێت، کاتژمێر مەخەرە کار
+
             timeLeft = 30;
             const tDisplay = document.getElementById('timeDisplay');
             const tBox = document.getElementById('timerBox');
@@ -474,6 +561,8 @@
             tBox.style.background = "#ef4444"; 
 
             timerInterval = setInterval(() => {
+                if (!isPlaying) { clearInterval(timerInterval); return; }
+                
                 timeLeft--;
                 tDisplay.innerText = timeLeft;
                 if (timeLeft <= 5) tBox.style.background = "#991b1b"; 
@@ -485,6 +574,7 @@
         }
 
         function autoPlayRandom() {
+            if (!isPlaying) return;
             if (isOnline) {
                 if (amIPlayer1 && currentPlayer === 2) return;
                 if (!amIPlayer1 && currentPlayer === 1) return;
@@ -523,13 +613,14 @@
                 calculateValidMoves();
                 executeMove(chosen.to.r, chosen.to.c, chosen.from.r, chosen.from.c, true);
             } else {
-                showAlert(currentPlayer === 1 ? "یاریزانی خوارەوە هیچ جووڵەیەکی نییە و دۆڕا!" : "یاریزانی سەرەوە هیچ جووڵەیەکی نییە و دۆڕا!");
-                clearInterval(timerInterval);
+                declareWinner(currentPlayer);
             }
         }
 
         // === زیرەکی دەستکرد AI ===
         function makeAIMove() {
+            if (!isPlaying) return;
+
             if (isMultiCapturing && selectedPiece) {
                 let chosen = validMoves[Math.floor(Math.random() * validMoves.length)];
                 executeMove(chosen.r, chosen.c, selectedPiece.r, selectedPiece.c, true);
@@ -572,17 +663,30 @@
 
         function resetGame(broadcast = false) {
             if (broadcast && isOnline && conn) { conn.send({ type: 'reset' }); }
+            
+            isPlaying = false;
+            clearInterval(timerInterval);
+            document.getElementById('timerBox').style.background = "#9ca3af";
+            document.getElementById('timeDisplay').innerText = "وەستاوە";
+            
+            const btn = document.getElementById('togglePlayBtn');
+            btn.innerText = "دەستپێکردنی یاری ▶️";
+            btn.className = "btn btn-green";
+            
+            document.getElementById('status').innerText = "چاوەڕێی دەستپێکردن...";
+            document.getElementById('status').style.color = "#1f2937";
+
             currentPlayer = 1;
             selectedPiece = null;
             validMoves = [];
             isMultiCapturing = false;
             initBoard();
-            updateColors();
             drawBoard();
-            startTimer();
         }
 
-        resetGame();
+        // دانانی تەختە بێ ئەوەی کاتژمێر یان یاری دەستپێبکات
+        initBoard();
+        drawBoard();
 
     </script>
 </body>
