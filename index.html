@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ئەپی کوردستان - دامە (مۆدی دڕندە)</title>
+    <title>ئەپی کوردستان - دامە (مستەوای 1000)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -69,13 +69,10 @@
 <body>
 
     <div class="header">
-        <svg class="flag" viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg">
-            <rect width="300" height="66.6" fill="#ED2024"/>
-            <rect y="66.6" width="300" height="66.6" fill="#FFFFFF"/>
-            <rect y="133.2" width="300" height="66.8" fill="#278E43"/>
-            <circle cx="150" cy="100" r="22" fill="#FEBD11"/>
-        </svg>
-        <h2 style="margin: 5px 0; color: #1f2937;">دامەی کوردستان</h2>
+        <h2 style="margin: 5px 0; font-size: 2rem;">
+            دامەی 
+            <span style="color: #ED2024;">ک</span><span style="color: #ED2024;">و</span><span style="color: #FEBD11; text-shadow: 0 0 1px #000;">ر</span><span style="color: #FEBD11; text-shadow: 0 0 1px #000;">د</span><span style="color: #FFFFFF; text-shadow: 0 0 2px #000;">س</span><span style="color: #FFFFFF; text-shadow: 0 0 2px #000;">ت</span><span style="color: #278E43;">ا</span><span style="color: #278E43;">ن</span>
+        </h2>
     </div>
 
     <div class="timer-box" id="timerBox">⏱️ <span id="timeDisplay">وەستاوە</span></div>
@@ -91,8 +88,8 @@
         </div>
         
         <div class="control-group" id="aiLevelContainer" style="display: none;">
-            <label>ئاستی کۆمپیوتەر (بێ کۆتا قورس - Minimax):</label>
-            <input type="range" id="aiLevel" min="0" max="100" value="100">
+            <label>ئاستی کۆمپیوتەر (مستەوای 1000 - بێ کۆتا قورس):</label>
+            <input type="range" id="aiLevel" min="0" max="1000" value="1000">
         </div>
 
         <div class="online-box" id="onlineContainer">
@@ -188,7 +185,7 @@
                 btn.innerText = "وەستاندنی یاری ⏸️"; btn.className = "btn btn-orange";
                 updateStatus(); startTimer();
                 const mode = document.getElementById('gameMode').value;
-                if (mode === 'ai' && currentPlayer === 2) setTimeout(makeAIMove, 600);
+                if (mode === 'ai' && currentPlayer === 2) setTimeout(makeAIMove, 300);
             } else {
                 btn.innerText = "دەستپێکردنەوە ▶️"; btn.className = "btn btn-green";
                 clearInterval(timerInterval);
@@ -485,74 +482,101 @@
         }
 
         // =========================================================
-        // مێشکی زیرەکی دەستکرد (Minimax - بێ کۆتا قورس)
+        // مێشکی زیرەکی دەستکرد - ئاستی ١٠٠٠ بێ کۆتا قورس (Minimax Alpha-Beta)
         // =========================================================
         function evaluateBoard(b) {
             let score = 0;
             for (let r = 0; r < ROWS; r++) {
                 for (let c = 0; c < COLS; c++) {
-                    if (b[r][c] === P2) score += (10 + r); // بەردی AI (هەرچەندە بڕواتە پێشەوە خاڵی زیاترە)
-                    else if (b[r][c] === P2_KING) score += 60; // سواری AI
-                    else if (b[r][c] === P1) score -= (10 + (7 - r)); // بەردی تۆ
-                    else if (b[r][c] === P1_KING) score -= 60; // سواری تۆ
+                    if (b[r][c] === P2) score += 100 + (r * 5); 
+                    else if (b[r][c] === P2_KING) score += 500;
+                    else if (b[r][c] === P1) score -= 100 + ((7 - r) * 5);
+                    else if (b[r][c] === P1_KING) score -= 500;
                 }
             }
             return score;
         }
 
-        function getSimulatedMoves(player, bState) {
-            let moves = [];
-            let mandatories = getAllMandatoryCaptures(player, bState);
-            if (mandatories.length > 0) {
-                mandatories.forEach(p => {
-                    let caps = getCaptureMovesForPiece(p.r, p.c, bState);
-                    caps.forEach(m => moves.push({ from: {r: p.r, c: p.c}, to: m }));
-                });
+        function minimax(bState, depth, alpha, beta, isMaximizing, currentR, currentC, isMulti) {
+            if (depth === 0) return evaluateBoard(bState);
+            let player = isMaximizing ? 2 : 1;
+            let possibleMoves = [];
+            
+            if (isMulti) {
+                let caps = getCaptureMovesForPiece(currentR, currentC, bState);
+                caps.forEach(m => possibleMoves.push({ from: {r: currentR, c: currentC}, to: m }));
             } else {
-                for (let r = 0; r < ROWS; r++) {
-                    for (let c = 0; c < COLS; c++) {
-                        const val = bState[r][c];
-                        if ((player === 1 && (val === P1 || val === P1_KING)) || (player === 2 && (val === P2 || val === P2_KING))) {
-                            let norms = getNormalMovesForPiece(r, c, bState);
-                            norms.forEach(m => moves.push({ from: {r, c}, to: m }));
+                let mandatories = getAllMandatoryCaptures(player, bState);
+                if (mandatories.length > 0) {
+                    mandatories.forEach(p => {
+                        let caps = getCaptureMovesForPiece(p.r, p.c, bState);
+                        caps.forEach(m => possibleMoves.push({ from: {r: p.r, c: p.c}, to: m }));
+                    });
+                } else {
+                    for (let r = 0; r < ROWS; r++) {
+                        for (let c = 0; c < COLS; c++) {
+                            const val = bState[r][c];
+                            if ((player === 1 && (val === P1 || val === P1_KING)) || (player === 2 && (val === P2 || val === P2_KING))) {
+                                let norms = getNormalMovesForPiece(r, c, bState);
+                                norms.forEach(m => possibleMoves.push({ from: {r, c}, to: m }));
+                            }
                         }
                     }
                 }
             }
-            return moves;
-        }
 
-        function applySimulatedMove(bState, move, player) {
-            bState[move.to.r][move.to.c] = bState[move.from.r][move.from.c];
-            bState[move.from.r][move.from.c] = EMPTY;
-            if (move.to.capture) bState[move.to.capture.r][move.to.capture.c] = EMPTY;
-            if (player === 1 && move.to.r === 0 && bState[move.to.r][move.to.c] === P1) bState[move.to.r][move.to.c] = P1_KING;
-            if (player === 2 && move.to.r === 7 && bState[move.to.r][move.to.c] === P2) bState[move.to.r][move.to.c] = P2_KING;
-        }
-
-        function minimax(bState, depth, alpha, beta, isMaximizing) {
-            if (depth === 0) return evaluateBoard(bState);
-
-            let moves = getSimulatedMoves(isMaximizing ? 2 : 1, bState);
-            if (moves.length === 0) return isMaximizing ? -9999 : 9999;
+            if (possibleMoves.length === 0) {
+                if (isMulti) return minimax(bState, depth - 1, alpha, beta, !isMaximizing, -1, -1, false);
+                return isMaximizing ? -99999 : 99999;
+            }
 
             if (isMaximizing) {
                 let maxEval = -Infinity;
-                for (let move of moves) {
+                for (let move of possibleMoves) {
                     let simBoard = bState.map(row => [...row]);
-                    applySimulatedMove(simBoard, move, 2);
-                    let ev = minimax(simBoard, depth - 1, alpha, beta, false);
+                    let fromR = move.from.r, fromC = move.from.c;
+                    simBoard[move.to.r][move.to.c] = simBoard[fromR][fromC]; simBoard[fromR][fromC] = EMPTY;
+                    
+                    let wasCapture = false;
+                    if (move.to.capture) { simBoard[move.to.capture.r][move.to.capture.c] = EMPTY; wasCapture = true; }
+                    
+                    let promoted = false;
+                    if (player === 2 && move.to.r === 7 && simBoard[move.to.r][move.to.c] === P2) { simBoard[move.to.r][move.to.c] = P2_KING; promoted = true; }
+                    
+                    let nextIsMulti = false;
+                    if (wasCapture && !promoted && getCaptureMovesForPiece(move.to.r, move.to.c, simBoard).length > 0) {
+                        nextIsMulti = true;
+                    }
+                    
+                    let ev = nextIsMulti ? minimax(simBoard, depth, alpha, beta, true, move.to.r, move.to.c, true) 
+                                         : minimax(simBoard, depth - 1, alpha, beta, false, -1, -1, false);
+                    
                     maxEval = Math.max(maxEval, ev);
                     alpha = Math.max(alpha, ev);
-                    if (beta <= alpha) break; // Alpha-Beta Pruning (بۆ خێرایی)
+                    if (beta <= alpha) break;
                 }
                 return maxEval;
             } else {
                 let minEval = Infinity;
-                for (let move of moves) {
+                for (let move of possibleMoves) {
                     let simBoard = bState.map(row => [...row]);
-                    applySimulatedMove(simBoard, move, 1);
-                    let ev = minimax(simBoard, depth - 1, alpha, beta, true);
+                    let fromR = move.from.r, fromC = move.from.c;
+                    simBoard[move.to.r][move.to.c] = simBoard[fromR][fromC]; simBoard[fromR][fromC] = EMPTY;
+                    
+                    let wasCapture = false;
+                    if (move.to.capture) { simBoard[move.to.capture.r][move.to.capture.c] = EMPTY; wasCapture = true; }
+                    
+                    let promoted = false;
+                    if (player === 1 && move.to.r === 0 && simBoard[move.to.r][move.to.c] === P1) { simBoard[move.to.r][move.to.c] = P1_KING; promoted = true; }
+                    
+                    let nextIsMulti = false;
+                    if (wasCapture && !promoted && getCaptureMovesForPiece(move.to.r, move.to.c, simBoard).length > 0) {
+                        nextIsMulti = true;
+                    }
+                    
+                    let ev = nextIsMulti ? minimax(simBoard, depth, alpha, beta, false, move.to.r, move.to.c, true) 
+                                         : minimax(simBoard, depth - 1, alpha, beta, true, -1, -1, false);
+                    
                     minEval = Math.min(minEval, ev);
                     beta = Math.min(beta, ev);
                     if (beta <= alpha) break;
@@ -563,32 +587,66 @@
 
         function makeAIMove() {
             if (!isPlaying) return;
-            
             if (isMultiCapturing && selectedPiece) {
                 let chosen = validMoves[Math.floor(Math.random() * validMoves.length)];
                 executeMove(chosen.r, chosen.c, selectedPiece.r, selectedPiece.c, true);
                 return;
             }
 
-            let possibleMoves = getSimulatedMoves(2, board);
+            let possibleMoves = [];
+            let mandatories = getAllMandatoryCaptures(2, board);
+            if (mandatories.length > 0) {
+                // هێنانەدی یاسای زۆرترین خواردن ڕێک وەک یاساکەی تۆ
+                let allRoots = [];
+                for(let r=0; r<ROWS; r++){
+                    for(let c=0; c<COLS; c++){
+                        if(board[r][c] === P2 || board[r][c] === P2_KING) {
+                            selectedPiece = {r, c, val: board[r][c]};
+                            calculateValidMoves(); 
+                            validMoves.forEach(m => allRoots.push({from: {r,c}, to: m}));
+                        }
+                    }
+                }
+                selectedPiece = null; validMoves = []; possibleMoves = allRoots;
+            } else {
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        if (board[r][c] === P2 || board[r][c] === P2_KING) {
+                            let norms = getNormalMovesForPiece(r, c, board);
+                            norms.forEach(m => possibleMoves.push({ from: {r, c}, to: m }));
+                        }
+                    }
+                }
+            }
+
             if (possibleMoves.length > 0) {
                 let level = parseInt(document.getElementById('aiLevel').value);
                 let chosenMove = possibleMoves[0];
 
-                if (level >= 80) {
-                    // ئێرەیە مێشکە قورسەکە (سەیری ٣ هەنگاوی داهاتوو دەکات پێش ئەوەی یاری بکات)
+                if (level >= 900) {
                     let bestScore = -Infinity;
+                    // لێرەدا 5 هەنگاو دەخوێنێتەوە (Level 1000)
                     for (let move of possibleMoves) {
                         let simBoard = board.map(row => [...row]);
-                        applySimulatedMove(simBoard, move, 2);
+                        simBoard[move.to.r][move.to.c] = simBoard[move.from.r][move.from.c];
+                        simBoard[move.from.r][move.from.c] = EMPTY;
                         
-                        let score = minimax(simBoard, 3, -Infinity, Infinity, false);
-                        score += (Math.random() * 0.1); // کەمێک هەڕەمەکی بۆ ئەوەی هەموو جارێک هەمان یاری نەکات
+                        let wasCapture = false;
+                        if (move.to.capture) { simBoard[move.to.capture.r][move.to.capture.c] = EMPTY; wasCapture = true; }
                         
-                        if (score > bestScore) {
-                            bestScore = score;
-                            chosenMove = move;
+                        let promoted = false;
+                        if (move.to.r === 7 && simBoard[move.to.r][move.to.c] === P2) { simBoard[move.to.r][move.to.c] = P2_KING; promoted = true; }
+                        
+                        let nextIsMulti = false;
+                        if (wasCapture && !promoted && getCaptureMovesForPiece(move.to.r, move.to.c, simBoard).length > 0) {
+                            nextIsMulti = true;
                         }
+
+                        let score = nextIsMulti ? minimax(simBoard, 5, -Infinity, Infinity, true, move.to.r, move.to.c, true)
+                                                : minimax(simBoard, 4, -Infinity, Infinity, false, -1, -1, false);
+                        
+                        score += (Math.random() * 0.1); 
+                        if (score > bestScore) { bestScore = score; chosenMove = move; }
                     }
                 } else {
                     chosenMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
