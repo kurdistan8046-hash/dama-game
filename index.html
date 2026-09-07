@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>دامەی تورکی پڕۆ</title>
+    <style>
+        :root {
+            --bg-color: #f3f4f6;
+            --board-dark: #8b4513;
+            --board-light: #deb887;
+            --player1-color: #000000;
+            --player2-color: #ffffff;
+            --highlight: rgba(34, 197, 94, 0.5);
+        }
+        body {
+            font-family: 'Tahoma', sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            touch-action: manipulation;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .flag {
+            width: 80px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            margin-bottom: 5px;
+        }
+        .controls {
+            background: white;
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+        }
+        .control-group {
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        select, input[type="color"], input[type="range"] {
+            padding: 5px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            width: 100%;
+            max-width: 400px;
+            aspect-ratio: 1/1;
+            border: 4px solid #4a3728;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+        .cell {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        .cell.dark { background-color: var(--board-dark); }
+        .cell.light { background-color: var(--board-light); }
+        .cell.highlight { background-color: var(--highlight); cursor: pointer; }
+        
+        .piece {
+            width: 80%;
+            height: 80%;
+            border-radius: 50%;
+            box-shadow: inset 0 -3px 5px rgba(0,0,0,0.3), 0 2px 4px rgba(0,0,0,0.4);
+            transition: all 0.2s ease;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 2px solid rgba(0,0,0,0.1);
+        }
+        .piece.p1 { background-color: var(--player1-color); }
+        .piece.p2 { background-color: var(--player2-color); }
+        .piece.selected { transform: scale(1.1); box-shadow: 0 0 10px yellow; border: 2px solid yellow; }
+        .piece.king::after {
+            content: '👑';
+            font-size: 1.2rem;
+        }
+        .status {
+            margin-top: 15px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #1e3a8a;
+        }
+        .btn {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+        }
+        .btn:active { background-color: #1d4ed8; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <svg class="flag" viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg">
+            <rect width="300" height="66.6" fill="#ED2024"/>
+            <rect y="66.6" width="300" height="66.6" fill="#FFFFFF"/>
+            <rect y="133.2" width="300" height="66.8" fill="#278E43"/>
+            <circle cx="150" cy="100" r="22" fill="#FEBD11"/>
+        </svg>
+        <h2 style="margin: 5px 0; color: #1f2937;">دامەی تورکی پڕۆ</h2>
+    </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <label>شێوازی یاری:</label>
+            <select id="gameMode" onchange="resetGame()">
+                <option value="pvp">دوو یاریزان (لەسەر یەک شاشە)</option>
+                <option value="ai">یاریکردن لەگەڵ کۆمپیوتەر (AI)</option>
+            </select>
+        </div>
+        <div class="control-group" id="aiLevelContainer" style="display: none;">
+            <label>ئاستی کۆمپیوتەر (0 - 100):</label>
+            <input type="range" id="aiLevel" min="0" max="100" value="50">
+        </div>
+        <div class="control-group">
+            <label>ڕەنگی بەردی ١ (خوارەوە):</label>
+            <input type="color" id="color1" value="#000000" onchange="updateColors()">
+        </div>
+        <div class="control-group">
+            <label>ڕەنگی بەردی ٢ (سەرەوە):</label>
+            <input type="color" id="color2" value="#ffffff" onchange="updateColors()">
+        </div>
+        <button class="btn" onclick="resetGame()">دەستپێکردنەوەی یاری</button>
+    </div>
+
+    <div id="status" class="status">نۆرەی یاریزانی خوارەوەیە (ڕەش)</div>
+
+    <div class="board" id="board"></div>
+
+    <script>
+        // Web Audio API بۆ دروستکردنی دەنگ بەبێ پێویستبوون بە فایلی دەرەکی
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            if (type === 'move') {
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(400, audioCtx.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.1);
+                gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.1);
+            } else if (type === 'capture') {
+                oscillator.type = 'square';
+                oscillator.frequency.setValueAtTime(150, audioCtx.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.2);
+                gainNode.gain.setValueAtTime(0.8, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.2);
+            }
+        }
+
+        // لۆژیکی یارییەکە
+        const ROWS = 8;
+        const COLS = 8;
+        let board = [];
+        let currentPlayer = 1; // 1 = خوارەوە (ڕەش), 2 = سەرەوە (سپی)
+        let selectedPiece = null;
+        let validMoves = [];
+
+        const EMPTY = 0;
+        const P1 = 1;
+        const P2 = 2;
+        const P1_KING = 3;
+        const P2_KING = 4;
+
+        function updateColors() {
+            document.documentElement.style.setProperty('--player1-color', document.getElementById('color1').value);
+            document.documentElement.style.setProperty('--player2-color', document.getElementById('color2').value);
+        }
+
+        document.getElementById('gameMode').addEventListener('change', function() {
+            document.getElementById('aiLevelContainer').style.display = this.value === 'ai' ? 'flex' : 'none';
+        });
+
+        function initBoard() {
+            board = Array(ROWS).fill().map(() => Array(COLS).fill(EMPTY));
+            // بەردەکانی سەرەوە (P2)
+            for (let c = 0; c < COLS; c++) { board[1][c] = P2; board[2][c] = P2; }
+            // بەردەکانی خوارەوە (P1)
+            for (let c = 0; c < COLS; c++) { board[5][c] = P1; board[6][c] = P1; }
+        }
+
+        function drawBoard() {
+            const boardDiv = document.getElementById('board');
+            boardDiv.innerHTML = '';
+            
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = `cell ${(r+c)%2===0 ? 'light' : 'dark'}`;
+                    cell.dataset.r = r;
+                    cell.dataset.c = c;
+                    
+                    // Highlight valid moves
+                    if (validMoves.some(m => m.r === r && m.c === c)) {
+                        cell.classList.add('highlight');
+                        cell.onclick = () => executeMove(r, c);
+                    } else {
+                        cell.onclick = () => selectPiece(r, c);
+                    }
+
+                    const val = board[r][c];
+                    if (val !== EMPTY) {
+                        const piece = document.createElement('div');
+                        piece.className = `piece ${val === P1 || val === P1_KING ? 'p1' : 'p2'}`;
+                        if (val === P1_KING || val === P2_KING) piece.classList.add('king');
+                        if (selectedPiece && selectedPiece.r === r && selectedPiece.c === c) {
+                            piece.classList.add('selected');
+                        }
+                        cell.appendChild(piece);
+                    }
+                    boardDiv.appendChild(cell);
+                }
+            }
+        }
+
+        function selectPiece(r, c) {
+            const mode = document.getElementById('gameMode').value;
+            if (mode === 'ai' && currentPlayer === 2) return; // ڕێگە مەدە کاتی AI دەستکاری بکرێت
+
+            const val = board[r][c];
+            if (val === EMPTY) return;
+            
+            const isP1Piece = (val === P1 || val === P1_KING);
+            if ((currentPlayer === 1 && isP1Piece) || (currentPlayer === 2 && !isP1Piece)) {
+                selectedPiece = { r, c, val };
+                calculateValidMoves();
+                drawBoard();
+            }
+        }
+
+        function calculateValidMoves() {
+            validMoves = [];
+            if (!selectedPiece) return;
+            
+            const r = selectedPiece.r;
+            const c = selectedPiece.c;
+            const isKing = (selectedPiece.val === P1_KING || selectedPiece.val === P2_KING);
+            const dir = (currentPlayer === 1) ? -1 : 1; // 1 دەڕواتە سەرەوە، 2 دەڕواتە خوارەوە
+
+            // جووڵەی ئاسایی (پێشەوە، ڕاست، چەپ) بۆ دامەی تورکی
+            const directions = [[dir, 0], [0, -1], [0, 1]];
+            if (isKing) directions.push([-dir, 0]); // پاشا دەگەڕێتەوە
+
+            directions.forEach(d => {
+                let nr = r + d[0];
+                let nc = c + d[1];
+                
+                // جووڵەی ئاسایی یەک خانە
+                if (isValid(nr, nc) && board[nr][nc] === EMPTY) {
+                    validMoves.push({ r: nr, c: nc, capture: null });
+                }
+                
+                // خواردنی بەرد
+                let jumpR = r + (d[0]*2);
+                let jumpC = c + (d[1]*2);
+                if (isValid(jumpR, jumpC) && board[jumpR][jumpC] === EMPTY && isValid(nr, nc)) {
+                    let enemy = board[nr][nc];
+                    if (enemy !== EMPTY && isEnemy(enemy)) {
+                        validMoves.push({ r: jumpR, c: jumpC, capture: {r: nr, c: nc} });
+                    }
+                }
+            });
+        }
+
+        function isValid(r, c) {
+            return r >= 0 && r < ROWS && c >= 0 && c < COLS;
+        }
+
+        function isEnemy(val) {
+            if (currentPlayer === 1) return val === P2 || val === P2_KING;
+            return val === P1 || val === P1_KING;
+        }
+
+        function executeMove(r, c) {
+            const move = validMoves.find(m => m.r === r && m.c === c);
+            if (!move) return;
+
+            // گواستنەوەی بەرد
+            board[r][c] = board[selectedPiece.r][selectedPiece.c];
+            board[selectedPiece.r][selectedPiece.c] = EMPTY;
+            
+            let captured = false;
+            if (move.capture) {
+                board[move.capture.r][move.capture.c] = EMPTY;
+                playSound('capture');
+                captured = true;
+            } else {
+                playSound('move');
+            }
+
+            // بوون بە پاشا
+            if (currentPlayer === 1 && r === 0 && board[r][c] === P1) board[r][c] = P1_KING;
+            if (currentPlayer === 2 && r === 7 && board[r][c] === P2) board[r][c] = P2_KING;
+
+            selectedPiece = null;
+            validMoves = [];
+            
+            currentPlayer = currentPlayer === 1 ? 2 : 1;
+            updateStatus();
+            drawBoard();
+
+            // ئەگەر نۆرەی AI بێت
+            if (document.getElementById('gameMode').value === 'ai' && currentPlayer === 2) {
+                setTimeout(makeAIMove, 500);
+            }
+        }
+
+        function updateStatus() {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerText = currentPlayer === 1 ? "نۆرەی یاریزانی خوارەوەیە" : "نۆرەی یاریزانی سەرەوەیە";
+            statusDiv.style.color = currentPlayer === 1 ? document.getElementById('color1').value : document.getElementById('color2').value;
+        }
+
+        // زیرەکی دەستکرد (AI) زۆر سادە و خێرا
+        function makeAIMove() {
+            let possibleMoves = [];
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const val = board[r][c];
+                    if (val === P2 || val === P2_KING) {
+                        selectedPiece = {r, c, val};
+                        calculateValidMoves();
+                        validMoves.forEach(m => {
+                            possibleMoves.push({ from: {r, c}, to: m });
+                        });
+                    }
+                }
+            }
+            
+            selectedPiece = null;
+            validMoves = [];
+
+            if (possibleMoves.length > 0) {
+                const aiLevel = document.getElementById('aiLevel').value;
+                let chosenMove;
+                
+                // ئەگەر ئاستی بەرز بوو، هەوڵدە بەرد بخوات
+                const captures = possibleMoves.filter(m => m.to.capture);
+                if (captures.length > 0 && Math.random() * 100 < aiLevel) {
+                    chosenMove = captures[Math.floor(Math.random() * captures.length)];
+                } else {
+                    chosenMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+                }
+
+                selectedPiece = { r: chosenMove.from.r, c: chosenMove.from.c, val: board[chosenMove.from.r][chosenMove.from.c] };
+                calculateValidMoves();
+                executeMove(chosenMove.to.r, chosenMove.to.c);
+            }
+        }
+
+        function resetGame() {
+            currentPlayer = 1;
+            selectedPiece = null;
+            validMoves = [];
+            initBoard();
+            updateColors();
+            updateStatus();
+            drawBoard();
+        }
+
+        // دەستپێکی یەکەم جار
+        resetGame();
+
+    </script>
+</body>
+</html>
