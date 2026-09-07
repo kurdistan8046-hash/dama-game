@@ -17,7 +17,6 @@
             touch-action: manipulation;
         }
         .header { text-align: center; margin-bottom: 5px; }
-        .flag { width: 70px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         .controls {
             background: white; padding: 15px; border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%;
@@ -69,9 +68,9 @@
 <body>
 
     <div class="header">
-        <h2 style="margin: 5px 0; font-size: 2rem;">
+        <h2 style="margin: 5px 0; font-size: 2.2rem; font-weight: 900;">
             دامەی 
-            <span style="color: #ED2024;">ک</span><span style="color: #ED2024;">و</span><span style="color: #FEBD11; text-shadow: 0 0 1px #000;">ر</span><span style="color: #FEBD11; text-shadow: 0 0 1px #000;">د</span><span style="color: #FFFFFF; text-shadow: 0 0 2px #000;">س</span><span style="color: #FFFFFF; text-shadow: 0 0 2px #000;">ت</span><span style="color: #278E43;">ا</span><span style="color: #278E43;">ن</span>
+            <span style="color: #ED2024; text-shadow: 1px 1px 1px #000;">ک</span><span style="color: #ED2024; text-shadow: 1px 1px 1px #000;">و</span><span style="color: #FEBD11; text-shadow: 1px 1px 1px #000;">ر</span><span style="color: #FEBD11; text-shadow: 1px 1px 1px #000;">د</span><span style="color: #FFFFFF; text-shadow: 1px 1px 2px #000;">س</span><span style="color: #FFFFFF; text-shadow: 1px 1px 2px #000;">ت</span><span style="color: #278E43; text-shadow: 1px 1px 1px #000;">ا</span><span style="color: #278E43; text-shadow: 1px 1px 1px #000;">ن</span>
         </h2>
     </div>
 
@@ -156,15 +155,17 @@
         const ROWS = 8, COLS = 8;
         let board = [];
         let currentPlayer = 1; 
+        
+        // بزوێنەری زۆرترین خواردن
+        let currentValidMoves = []; 
+        let mustMovePiece = null; 
         let selectedPiece = null;
-        let validMoves = [];
-        let isMultiCapturing = false; 
         let isPlaying = false; 
+        let validMovesForUI = []; // بۆ پیشاندان لەسەر شاشە
         const EMPTY = 0, P1 = 1, P2 = 2, P1_KING = 3, P2_KING = 4;
 
         let timerInterval;
         let timeLeft = 30;
-
         let peer = null, conn = null, myId = "", isOnline = false, amIPlayer1 = true;
 
         function showAlert(msg) {
@@ -183,9 +184,10 @@
             const btn = document.getElementById('togglePlayBtn');
             if (isPlaying) {
                 btn.innerText = "وەستاندنی یاری ⏸️"; btn.className = "btn btn-orange";
+                prepareTurn();
                 updateStatus(); startTimer();
                 const mode = document.getElementById('gameMode').value;
-                if (mode === 'ai' && currentPlayer === 2) setTimeout(makeAIMove, 300);
+                if (mode === 'ai' && currentPlayer === 2) setTimeout(makeAIMove, 400);
             } else {
                 btn.innerText = "دەستپێکردنەوە ▶️"; btn.className = "btn btn-green";
                 clearInterval(timerInterval);
@@ -208,8 +210,9 @@
             peer = new Peer(myId);
             peer.on('open', function(id) { document.getElementById('myCode').innerText = id; });
             peer.on('connection', function(connection) {
-                conn = connection; setupConnection(); amIPlayer1 = true;
+                conn = connection; amIPlayer1 = true;
                 document.getElementById('onlineStatus').innerText = "✅ هاوڕێکەت هاتە ژوورەوە!"; resetGame(false);
+                setupConnection();
             });
         }
         function connectToFriend() {
@@ -218,8 +221,9 @@
             document.getElementById('onlineStatus').innerText = "بەستنەوە...";
             conn = peer.connect(friendId);
             conn.on('open', function() {
-                setupConnection(); amIPlayer1 = false;
+                amIPlayer1 = false;
                 document.getElementById('onlineStatus').innerText = "✅ بەستراینەوە! یاری دەستی پێکرد."; resetGame(false);
+                setupConnection();
             });
         }
         function setupConnection() {
@@ -227,9 +231,8 @@
             conn.on('data', function(data) {
                 if(data.type === 'move') {
                     if(!isPlaying) { isPlaying = true; document.getElementById('togglePlayBtn').innerText = "وەستاندنی یاری ⏸️"; document.getElementById('togglePlayBtn').className = "btn btn-orange"; }
-                    selectedPiece = { r: data.selectedR, c: data.selectedC, val: board[data.selectedR][data.selectedC] };
-                    calculateValidMoves();
-                    executeMove(data.r, data.c, data.selectedR, data.selectedC, false);
+                    selectedPiece = { r: data.fromR, c: data.fromC };
+                    executeMove(data.toR, data.toC, data.fromR, data.fromC, false);
                 } else if(data.type === 'reset') { resetGame(false); }
             });
         }
@@ -247,9 +250,9 @@
                     const cell = document.createElement('div');
                     cell.className = `cell ${(r+c)%2===0 ? 'light' : 'dark'}`;
                     
-                    let moveOpt = validMoves.find(m => m.r === r && m.c === c);
-                    if (moveOpt) {
-                        cell.classList.add(moveOpt.capture ? 'highlight-danger' : 'highlight');
+                    let isTarget = validMovesForUI.find(m => m.r === r && m.c === c);
+                    if (isTarget) {
+                        cell.classList.add(isTarget.capture ? 'highlight-danger' : 'highlight');
                         cell.onclick = () => onCellClick(r, c, true);
                     } else {
                         cell.onclick = () => onCellClick(r, c, false);
@@ -269,17 +272,19 @@
         }
 
         function isValid(r, c) { return r >= 0 && r < ROWS && c >= 0 && c < COLS; }
-        function isEnemy(enemyVal, myVal) {
-            let myPlayer = (myVal === P1 || myVal === P1_KING) ? 1 : 2;
-            if (myPlayer === 1) return enemyVal === P2 || enemyVal === P2_KING;
+        function isEnemy(enemyVal, playerNum) {
+            if (playerNum === 1) return enemyVal === P2 || enemyVal === P2_KING;
             return enemyVal === P1 || enemyVal === P1_KING;
         }
 
-        function getCaptureMovesForPiece(r, c, bState) {
+        // =================================================================
+        // لۆژیکی ستانداردی جیهانی (بەدواداگەڕانی زۆرترین خواردن - Max Capture)
+        // =================================================================
+        function getDirectCaptures(r, c, bState, pieceVal) {
             let caps = [];
-            const val = bState[r][c];
-            const isKing = (val === P1_KING || val === P2_KING);
-            
+            const isKing = (pieceVal === P1_KING || pieceVal === P2_KING);
+            const player = (pieceVal === P1 || pieceVal === P1_KING) ? 1 : 2;
+
             if (isKing) {
                 const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
                 directions.forEach(d => {
@@ -287,8 +292,8 @@
                     while (isValid(nr, nc)) {
                         let cellVal = bState[nr][nc];
                         if (cellVal !== EMPTY) {
-                            if (!foundEnemy && isEnemy(cellVal, val)) { foundEnemy = true; enemyPos = {r: nr, c: nc}; } 
-                            else { break; }
+                            if (!foundEnemy && isEnemy(cellVal, player)) { foundEnemy = true; enemyPos = {r: nr, c: nc}; } 
+                            else { break; } // ڕێگا گیرا
                         } else if (foundEnemy) {
                             caps.push({ r: nr, c: nc, capture: enemyPos });
                         }
@@ -296,23 +301,24 @@
                     }
                 });
             } else {
-                const dir = (val === P1) ? -1 : 1;
+                const dir = (pieceVal === P1) ? -1 : 1;
                 const directions = [[dir, 0], [0, -1], [0, 1]];
                 directions.forEach(d => {
                     let nr = r + d[0], nc = c + d[1], jumpR = r + (d[0]*2), jumpC = c + (d[1]*2);
                     if (isValid(jumpR, jumpC) && bState[jumpR][jumpC] === EMPTY && isValid(nr, nc)) {
-                        let enemy = bState[nr][nc];
-                        if (enemy !== EMPTY && isEnemy(enemy, val)) caps.push({ r: jumpR, c: jumpC, capture: {r: nr, c: nc} });
+                        let cellVal = bState[nr][nc];
+                        if (cellVal !== EMPTY && isEnemy(cellVal, player)) {
+                            caps.push({ r: jumpR, c: jumpC, capture: {r: nr, c: nc} });
+                        }
                     }
                 });
             }
             return caps;
         }
 
-        function getNormalMovesForPiece(r, c, bState) {
+        function getNormalMoves(r, c, bState, pieceVal) {
             let moves = [];
-            const val = bState[r][c];
-            const isKing = (val === P1_KING || val === P2_KING);
+            const isKing = (pieceVal === P1_KING || pieceVal === P2_KING);
             if (isKing) {
                 const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
                 directions.forEach(d => {
@@ -320,7 +326,7 @@
                     while (isValid(nr, nc) && bState[nr][nc] === EMPTY) { moves.push({ r: nr, c: nc, capture: null }); nr += d[0]; nc += d[1]; }
                 });
             } else {
-                const dir = (val === P1) ? -1 : 1;
+                const dir = (pieceVal === P1) ? -1 : 1;
                 const directions = [[dir, 0], [0, -1], [0, 1]];
                 directions.forEach(d => {
                     let nr = r + d[0], nc = c + d[1];
@@ -330,18 +336,87 @@
             return moves;
         }
 
-        function getAllMandatoryCaptures(player, bState) {
-            let caps = [];
-            for (let r = 0; r < ROWS; r++) {
-                for (let c = 0; c < COLS; c++) {
-                    const val = bState[r][c];
-                    if ((player === 1 && (val === P1 || val === P1_KING)) || (player === 2 && (val === P2 || val === P2_KING))) {
-                        let pieceCaps = getCaptureMovesForPiece(r, c, bState);
-                        if (pieceCaps.length > 0) caps.push({r, c});
+        // دۆزینەوەی هەموو ڕێڕەوەکانی خواردن بۆ ئەوەی درێژترینیان هەڵبژێرێت
+        function getMaxCapturePaths(player, bState, startR = -1, startC = -1, specificPieceVal = EMPTY) {
+            let maxCaptures = 0;
+            let bestPaths = [];
+
+            function traverse(r, c, currentBoard, currentPath, pVal) {
+                let caps = getDirectCaptures(r, c, currentBoard, pVal);
+                if (caps.length === 0) {
+                    if (currentPath.length > maxCaptures) {
+                        maxCaptures = currentPath.length;
+                        bestPaths = [currentPath];
+                    } else if (currentPath.length === maxCaptures && maxCaptures > 0) {
+                        bestPaths.push(currentPath);
+                    }
+                    return;
+                }
+
+                for (let cap of caps) {
+                    let nextBoard = currentBoard.map(row => [...row]);
+                    nextBoard[cap.r][cap.c] = pVal;
+                    nextBoard[r][c] = EMPTY;
+                    nextBoard[cap.capture.r][cap.capture.c] = EMPTY; // بەردەکە ڕاستەوخۆ لادەبرێت بۆ ئەوەی ڕێگا بکرێتەوە
+
+                    let nextPieceVal = pVal;
+                    if (pVal === P1 && cap.r === 0) nextPieceVal = P1_KING;
+                    if (pVal === P2 && cap.r === 7) nextPieceVal = P2_KING;
+                    nextBoard[cap.r][cap.c] = nextPieceVal;
+
+                    let moveRecord = { from: {r, c}, to: cap };
+                    traverse(cap.r, cap.c, nextBoard, [...currentPath, moveRecord], nextPieceVal);
+                }
+            }
+
+            if (startR !== -1 && startC !== -1) {
+                traverse(startR, startC, bState, [], specificPieceVal);
+            } else {
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        let val = bState[r][c];
+                        if ((player === 1 && (val === P1 || val === P1_KING)) || (player === 2 && (val === P2 || val === P2_KING))) {
+                            traverse(r, c, bState, [], val);
+                        }
                     }
                 }
             }
-            return caps;
+            return { maxCaptures, bestPaths };
+        }
+
+        function prepareTurn() {
+            if (!isPlaying) return;
+            let capData;
+            if (mustMovePiece) {
+                capData = getMaxCapturePaths(currentPlayer, board, mustMovePiece.r, mustMovePiece.c, board[mustMovePiece.r][mustMovePiece.c]);
+            } else {
+                capData = getMaxCapturePaths(currentPlayer, board);
+            }
+
+            currentValidMoves = [];
+            if (capData.maxCaptures > 0) {
+                // دەبێت زۆرترین بخوات
+                for (let path of capData.bestPaths) {
+                    currentValidMoves.push(path[0]);
+                }
+            } else {
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        let val = board[r][c];
+                        if ((currentPlayer === 1 && (val === P1 || val === P1_KING)) || (currentPlayer === 2 && (val === P2 || val === P2_KING))) {
+                            let norms = getNormalMoves(r, c, board, val);
+                            norms.forEach(m => currentValidMoves.push({ from: {r, c}, to: m }));
+                        }
+                    }
+                }
+            }
+
+            // سڕینەوەی دووبارەکان
+            currentValidMoves = currentValidMoves.filter((v,i,a) => a.findIndex(t => t.from.r === v.from.r && t.from.c === v.from.c && t.to.r === v.to.r && t.to.c === v.to.c) === i);
+
+            if (currentValidMoves.length === 0) {
+                declareWinner(currentPlayer);
+            }
         }
 
         function onCellClick(r, c, isHighlight) {
@@ -349,48 +424,31 @@
             const mode = document.getElementById('gameMode').value;
             if (mode === 'ai' && currentPlayer === 2) return;
             if (isOnline) { if (amIPlayer1 && currentPlayer === 2) return; if (!amIPlayer1 && currentPlayer === 1) return; }
-            if (isMultiCapturing) {
-                if (isHighlight) executeMove(r, c, selectedPiece.r, selectedPiece.c, true);
-                else showAlert("دەبێت بەردەوام بیت لە زنجیرە خواردن!");
-                return;
+            
+            if (isHighlight && selectedPiece) {
+                executeMove(r, c, selectedPiece.r, selectedPiece.c, true);
+            } else {
+                selectPiece(r, c);
             }
-            if (isHighlight) executeMove(r, c, selectedPiece.r, selectedPiece.c, true);
-            else selectPiece(r, c);
         }
 
         function selectPiece(r, c) {
-            const val = board[r][c];
-            if (val === EMPTY) return;
-            const isP1Piece = (val === P1 || val === P1_KING);
-            if ((currentPlayer === 1 && !isP1Piece) || (currentPlayer === 2 && isP1Piece)) return;
-
-            let mandatoryPieces = getAllMandatoryCaptures(currentPlayer, board);
-            if (mandatoryPieces.length > 0) {
-                let isMandatory = mandatoryPieces.some(p => p.r === r && p.c === c);
-                if (!isMandatory) return showAlert("یاسا: دەبێت ئەو بەردە بجووڵێنیت کە خواردنی هەیە!");
+            if (mustMovePiece && (r !== mustMovePiece.r || c !== mustMovePiece.c)) {
+                showAlert("دەبێت بەردەوام بیت لە زنجیرە خواردن!"); return;
             }
 
-            selectedPiece = { r, c, val };
-            calculateValidMoves(); drawBoard();
-        }
-
-        function calculateValidMoves() {
-            validMoves = [];
-            if (!selectedPiece) return;
-            let caps = getCaptureMovesForPiece(selectedPiece.r, selectedPiece.c, board);
-            if (caps.length > 0) {
-                let multiCaps = caps.filter(c => {
-                    let simBoard = board.map(row => [...row]);
-                    simBoard[c.r][c.c] = simBoard[selectedPiece.r][selectedPiece.c];
-                    simBoard[selectedPiece.r][selectedPiece.c] = EMPTY;
-                    simBoard[c.capture.r][c.capture.c] = EMPTY;
-                    let nextCaps = getCaptureMovesForPiece(c.r, c.c, simBoard);
-                    return nextCaps.length > 0;
-                });
-                validMoves = (multiCaps.length > 0) ? multiCaps : caps;
-            } else {
-                validMoves = getNormalMovesForPiece(selectedPiece.r, selectedPiece.c, board);
+            let myValid = currentValidMoves.filter(m => m.from.r === r && m.from.c === c);
+            
+            if (myValid.length === 0) {
+                if (currentValidMoves.length > 0 && currentValidMoves[0].to.capture) {
+                    showAlert("یاسا: دەبێت ئەو بەردە بجووڵێنیت کە زۆرترین خواردنی هەیە!");
+                }
+                return;
             }
+
+            selectedPiece = { r, c };
+            validMovesForUI = myValid.map(m => m.to);
+            drawBoard();
         }
 
         function declareWinner(losingPlayer) {
@@ -413,33 +471,16 @@
             }
         }
 
-        function checkGameOver() {
-            let hasMoves = false;
-            let mandatories = getAllMandatoryCaptures(currentPlayer, board);
-            if (mandatories.length > 0) hasMoves = true;
-            else {
-                for (let r = 0; r < ROWS; r++) {
-                    for (let c = 0; c < COLS; c++) {
-                        const val = board[r][c];
-                        if ((currentPlayer === 1 && (val === P1 || val === P1_KING)) || (currentPlayer === 2 && (val === P2 || val === P2_KING))) {
-                            if (getNormalMovesForPiece(r, c, board).length > 0) hasMoves = true;
-                        }
-                    }
-                }
-            }
-            if (!hasMoves) { declareWinner(currentPlayer); return true; }
-            return false;
-        }
-
         function executeMove(toR, toC, fromR, fromC, broadcast = false) {
-            const move = validMoves.find(m => m.r === toR && m.c === toC);
-            if (!move) return;
-            if (broadcast && isOnline && conn) conn.send({ type: 'move', r: toR, c: toC, selectedR: fromR, selectedC: fromC });
+            if (broadcast && isOnline && conn) conn.send({ type: 'move', toR, toC, fromR, fromC });
+
+            let move = currentValidMoves.find(m => m.from.r === fromR && m.from.c === fromC && m.to.r === toR && m.to.c === toC);
+            if (!move) return; // پاراستن
 
             board[toR][toC] = board[fromR][fromC]; board[fromR][fromC] = EMPTY;
             
             let wasCapture = false;
-            if (move.capture) { board[move.capture.r][move.capture.c] = EMPTY; playSound('capture'); wasCapture = true; } 
+            if (move.to.capture) { board[move.to.capture.r][move.to.capture.c] = EMPTY; playSound('capture'); wasCapture = true; } 
             else { playSound('move'); }
 
             let promoted = false;
@@ -447,21 +488,23 @@
             if (currentPlayer === 2 && toR === 7 && board[toR][toC] === P2) { board[toR][toC] = P2_KING; promoted = true; }
 
             if (wasCapture && !promoted) {
-                let furtherCaps = getCaptureMovesForPiece(toR, toC, board);
-                if (furtherCaps.length > 0) {
-                    isMultiCapturing = true; selectedPiece = { r: toR, c: toC, val: board[toR][toC] };
-                    calculateValidMoves(); 
+                let nextCapData = getMaxCapturePaths(currentPlayer, board, toR, toC, board[toR][toC]);
+                if (nextCapData.maxCaptures > 0) {
+                    mustMovePiece = {r: toR, c: toC};
+                    selectedPiece = mustMovePiece;
+                    prepareTurn();
+                    validMovesForUI = currentValidMoves.map(m => m.to);
                     drawBoard(); startTimer(); 
                     if (document.getElementById('gameMode').value === 'ai' && currentPlayer === 2 && isPlaying) setTimeout(makeAIMove, 700); 
                     return; 
                 }
             }
 
-            isMultiCapturing = false; selectedPiece = null; validMoves = [];
+            mustMovePiece = null; selectedPiece = null; validMovesForUI = [];
             currentPlayer = currentPlayer === 1 ? 2 : 1;
+            prepareTurn(); // ئامادەکردنی نۆرەی داهاتوو
             updateStatus(); drawBoard();
             
-            if (checkGameOver()) return; 
             startTimer();
             if (document.getElementById('gameMode').value === 'ai' && currentPlayer === 2 && isPlaying) setTimeout(makeAIMove, 700);
         }
@@ -482,51 +525,65 @@
         }
 
         // =========================================================
-        // مێشکی زیرەکی دەستکرد - ئاستی ١٠٠٠ بێ کۆتا قورس (Minimax Alpha-Beta)
+        // مێشکی ڕاوکەری زیرەکی دەستکرد (Minimax Depth 5 - بێ کۆتا قورس)
         // =========================================================
         function evaluateBoard(b) {
             let score = 0;
+            let p1Pieces = [], p2Pieces = [];
             for (let r = 0; r < ROWS; r++) {
                 for (let c = 0; c < COLS; c++) {
-                    if (b[r][c] === P2) score += 100 + (r * 5); 
-                    else if (b[r][c] === P2_KING) score += 500;
-                    else if (b[r][c] === P1) score -= 100 + ((7 - r) * 5);
-                    else if (b[r][c] === P1_KING) score -= 500;
+                    if (b[r][c] === P2) { score += 100 + (r * 3); p2Pieces.push({r, c, k: false}); }
+                    else if (b[r][c] === P2_KING) { score += 500; p2Pieces.push({r, c, k: true}); }
+                    else if (b[r][c] === P1) { score -= 100 + ((7 - r) * 3); p1Pieces.push({r, c, k: false}); }
+                    else if (b[r][c] === P1_KING) { score -= 500; p1Pieces.push({r, c, k: true}); }
                 }
+            }
+            // فەرمانی ڕاوکردن: ئەگەر سواری هەبوو یەکسەر لێت نزیک دەبێتەوە بۆ کوشتن!
+            if (p2Pieces.length > 0 && p1Pieces.length > 0) {
+                let distScore = 0;
+                for (let p2 of p2Pieces) {
+                    if (p2.k) {
+                        let minDist = 999;
+                        for (let p1 of p1Pieces) {
+                            let dist = Math.abs(p2.r - p1.r) + Math.abs(p2.c - p1.c);
+                            if (dist < minDist) minDist = dist;
+                        }
+                        distScore -= minDist; // نزیکبوونەوە خاڵی زیاد دەکات
+                    }
+                }
+                score += distScore * 2;
             }
             return score;
         }
 
-        function minimax(bState, depth, alpha, beta, isMaximizing, currentR, currentC, isMulti) {
-            if (depth === 0) return evaluateBoard(bState);
-            let player = isMaximizing ? 2 : 1;
-            let possibleMoves = [];
-            
-            if (isMulti) {
-                let caps = getCaptureMovesForPiece(currentR, currentC, bState);
-                caps.forEach(m => possibleMoves.push({ from: {r: currentR, c: currentC}, to: m }));
+        function getSimulatedMoves(player, bState, mustMoveR = -1, mustMoveC = -1) {
+            let capData;
+            if (mustMoveR !== -1) capData = getMaxCapturePaths(player, bState, mustMoveR, mustMoveC, bState[mustMoveR][mustMoveC]);
+            else capData = getMaxCapturePaths(player, bState);
+
+            let moves = [];
+            if (capData.maxCaptures > 0) {
+                for (let path of capData.bestPaths) moves.push(path[0]);
             } else {
-                let mandatories = getAllMandatoryCaptures(player, bState);
-                if (mandatories.length > 0) {
-                    mandatories.forEach(p => {
-                        let caps = getCaptureMovesForPiece(p.r, p.c, bState);
-                        caps.forEach(m => possibleMoves.push({ from: {r: p.r, c: p.c}, to: m }));
-                    });
-                } else {
-                    for (let r = 0; r < ROWS; r++) {
-                        for (let c = 0; c < COLS; c++) {
-                            const val = bState[r][c];
-                            if ((player === 1 && (val === P1 || val === P1_KING)) || (player === 2 && (val === P2 || val === P2_KING))) {
-                                let norms = getNormalMovesForPiece(r, c, bState);
-                                norms.forEach(m => possibleMoves.push({ from: {r, c}, to: m }));
-                            }
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        let val = bState[r][c];
+                        if ((player === 1 && (val === P1 || val === P1_KING)) || (player === 2 && (val === P2 || val === P2_KING))) {
+                            let norms = getNormalMoves(r, c, bState, val);
+                            norms.forEach(m => moves.push({ from: {r, c}, to: m }));
                         }
                     }
                 }
             }
+            return moves.filter((v,i,a) => a.findIndex(t => t.from.r === v.from.r && t.from.c === v.from.c && t.to.r === v.to.r && t.to.c === v.to.c) === i);
+        }
+
+        function minimax(bState, depth, alpha, beta, isMaximizing, mustMoveR = -1, mustMoveC = -1) {
+            if (depth === 0) return evaluateBoard(bState);
+            let player = isMaximizing ? 2 : 1;
+            let possibleMoves = getSimulatedMoves(player, bState, mustMoveR, mustMoveC);
 
             if (possibleMoves.length === 0) {
-                if (isMulti) return minimax(bState, depth - 1, alpha, beta, !isMaximizing, -1, -1, false);
                 return isMaximizing ? -99999 : 99999;
             }
 
@@ -541,16 +598,14 @@
                     if (move.to.capture) { simBoard[move.to.capture.r][move.to.capture.c] = EMPTY; wasCapture = true; }
                     
                     let promoted = false;
-                    if (player === 2 && move.to.r === 7 && simBoard[move.to.r][move.to.c] === P2) { simBoard[move.to.r][move.to.c] = P2_KING; promoted = true; }
+                    if (move.to.r === 7 && simBoard[move.to.r][move.to.c] === P2) { simBoard[move.to.r][move.to.c] = P2_KING; promoted = true; }
                     
-                    let nextIsMulti = false;
-                    if (wasCapture && !promoted && getCaptureMovesForPiece(move.to.r, move.to.c, simBoard).length > 0) {
-                        nextIsMulti = true;
+                    let nextMustR = -1, nextMustC = -1, nextIsMax = false;
+                    if (wasCapture && !promoted && getMaxCapturePaths(2, simBoard, move.to.r, move.to.c, simBoard[move.to.r][move.to.c]).maxCaptures > 0) {
+                        nextMustR = move.to.r; nextMustC = move.to.c; nextIsMax = true; // نۆرەی خۆیەتی بەردەوام بێت
                     }
                     
-                    let ev = nextIsMulti ? minimax(simBoard, depth, alpha, beta, true, move.to.r, move.to.c, true) 
-                                         : minimax(simBoard, depth - 1, alpha, beta, false, -1, -1, false);
-                    
+                    let ev = minimax(simBoard, nextIsMax ? depth : depth - 1, alpha, beta, nextIsMax, nextMustR, nextMustC);
                     maxEval = Math.max(maxEval, ev);
                     alpha = Math.max(alpha, ev);
                     if (beta <= alpha) break;
@@ -567,16 +622,14 @@
                     if (move.to.capture) { simBoard[move.to.capture.r][move.to.capture.c] = EMPTY; wasCapture = true; }
                     
                     let promoted = false;
-                    if (player === 1 && move.to.r === 0 && simBoard[move.to.r][move.to.c] === P1) { simBoard[move.to.r][move.to.c] = P1_KING; promoted = true; }
+                    if (move.to.r === 0 && simBoard[move.to.r][move.to.c] === P1) { simBoard[move.to.r][move.to.c] = P1_KING; promoted = true; }
                     
-                    let nextIsMulti = false;
-                    if (wasCapture && !promoted && getCaptureMovesForPiece(move.to.r, move.to.c, simBoard).length > 0) {
-                        nextIsMulti = true;
+                    let nextMustR = -1, nextMustC = -1, nextIsMax = true;
+                    if (wasCapture && !promoted && getMaxCapturePaths(1, simBoard, move.to.r, move.to.c, simBoard[move.to.r][move.to.c]).maxCaptures > 0) {
+                        nextMustR = move.to.r; nextMustC = move.to.c; nextIsMax = false; // نۆرەی تۆیەتی بەردەوام بیت
                     }
                     
-                    let ev = nextIsMulti ? minimax(simBoard, depth, alpha, beta, false, move.to.r, move.to.c, true) 
-                                         : minimax(simBoard, depth - 1, alpha, beta, true, -1, -1, false);
-                    
+                    let ev = minimax(simBoard, nextIsMax ? depth - 1 : depth, alpha, beta, nextIsMax, nextMustR, nextMustC);
                     minEval = Math.min(minEval, ev);
                     beta = Math.min(beta, ev);
                     if (beta <= alpha) break;
@@ -586,78 +639,40 @@
         }
 
         function makeAIMove() {
-            if (!isPlaying) return;
-            if (isMultiCapturing && selectedPiece) {
-                let chosen = validMoves[Math.floor(Math.random() * validMoves.length)];
-                executeMove(chosen.r, chosen.c, selectedPiece.r, selectedPiece.c, true);
-                return;
-            }
+            if (!isPlaying || currentValidMoves.length === 0) return;
 
-            let possibleMoves = [];
-            let mandatories = getAllMandatoryCaptures(2, board);
-            if (mandatories.length > 0) {
-                // هێنانەدی یاسای زۆرترین خواردن ڕێک وەک یاساکەی تۆ
-                let allRoots = [];
-                for(let r=0; r<ROWS; r++){
-                    for(let c=0; c<COLS; c++){
-                        if(board[r][c] === P2 || board[r][c] === P2_KING) {
-                            selectedPiece = {r, c, val: board[r][c]};
-                            calculateValidMoves(); 
-                            validMoves.forEach(m => allRoots.push({from: {r,c}, to: m}));
-                        }
+            let level = parseInt(document.getElementById('aiLevel').value);
+            let chosenMove = currentValidMoves[0];
+
+            if (level >= 900) {
+                let bestScore = -Infinity;
+                // بێ کۆتا قورس: 5 هەنگاو دەخوێنێتەوە (قووڵترین لێکدانەوە)
+                for (let move of currentValidMoves) {
+                    let simBoard = board.map(row => [...row]);
+                    simBoard[move.to.r][move.to.c] = simBoard[move.from.r][move.from.c];
+                    simBoard[move.from.r][move.from.c] = EMPTY;
+                    
+                    let wasCapture = false;
+                    if (move.to.capture) { simBoard[move.to.capture.r][move.to.capture.c] = EMPTY; wasCapture = true; }
+                    
+                    let promoted = false;
+                    if (move.to.r === 7 && simBoard[move.to.r][move.to.c] === P2) { simBoard[move.to.r][move.to.c] = P2_KING; promoted = true; }
+                    
+                    let nextMustR = -1, nextMustC = -1, nextIsMax = false;
+                    if (wasCapture && !promoted && getMaxCapturePaths(2, simBoard, move.to.r, move.to.c, simBoard[move.to.r][move.to.c]).maxCaptures > 0) {
+                        nextMustR = move.to.r; nextMustC = move.to.c; nextIsMax = true;
                     }
+
+                    let score = minimax(simBoard, nextIsMax ? 5 : 4, -Infinity, Infinity, nextIsMax, nextMustR, nextMustC);
+                    score += (Math.random() * 0.1); 
+                    
+                    if (score > bestScore) { bestScore = score; chosenMove = move; }
                 }
-                selectedPiece = null; validMoves = []; possibleMoves = allRoots;
             } else {
-                for (let r = 0; r < ROWS; r++) {
-                    for (let c = 0; c < COLS; c++) {
-                        if (board[r][c] === P2 || board[r][c] === P2_KING) {
-                            let norms = getNormalMovesForPiece(r, c, board);
-                            norms.forEach(m => possibleMoves.push({ from: {r, c}, to: m }));
-                        }
-                    }
-                }
+                chosenMove = currentValidMoves[Math.floor(Math.random() * currentValidMoves.length)];
             }
 
-            if (possibleMoves.length > 0) {
-                let level = parseInt(document.getElementById('aiLevel').value);
-                let chosenMove = possibleMoves[0];
-
-                if (level >= 900) {
-                    let bestScore = -Infinity;
-                    // لێرەدا 5 هەنگاو دەخوێنێتەوە (Level 1000)
-                    for (let move of possibleMoves) {
-                        let simBoard = board.map(row => [...row]);
-                        simBoard[move.to.r][move.to.c] = simBoard[move.from.r][move.from.c];
-                        simBoard[move.from.r][move.from.c] = EMPTY;
-                        
-                        let wasCapture = false;
-                        if (move.to.capture) { simBoard[move.to.capture.r][move.to.capture.c] = EMPTY; wasCapture = true; }
-                        
-                        let promoted = false;
-                        if (move.to.r === 7 && simBoard[move.to.r][move.to.c] === P2) { simBoard[move.to.r][move.to.c] = P2_KING; promoted = true; }
-                        
-                        let nextIsMulti = false;
-                        if (wasCapture && !promoted && getCaptureMovesForPiece(move.to.r, move.to.c, simBoard).length > 0) {
-                            nextIsMulti = true;
-                        }
-
-                        let score = nextIsMulti ? minimax(simBoard, 5, -Infinity, Infinity, true, move.to.r, move.to.c, true)
-                                                : minimax(simBoard, 4, -Infinity, Infinity, false, -1, -1, false);
-                        
-                        score += (Math.random() * 0.1); 
-                        if (score > bestScore) { bestScore = score; chosenMove = move; }
-                    }
-                } else {
-                    chosenMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
-                }
-
-                selectedPiece = { r: chosenMove.from.r, c: chosenMove.from.c, val: board[chosenMove.from.r][chosenMove.from.c] };
-                calculateValidMoves();
-                let actualMove = validMoves.find(m => m.r === chosenMove.to.r && m.c === chosenMove.to.c);
-                if (actualMove) executeMove(actualMove.r, actualMove.c, chosenMove.from.r, chosenMove.from.c, true);
-                else executeMove(validMoves[0].r, validMoves[0].c, selectedPiece.r, selectedPiece.c, true);
-            }
+            executeMove(chosenMove.to.r, chosenMove.to.c, chosenMove.from.r, chosenMove.from.c, true);
         }
 
         function updateStatus() {
@@ -676,7 +691,7 @@
             btn.innerText = "دەستپێکردنی یاری ▶️"; btn.className = "btn btn-green";
             document.getElementById('status').innerText = "چاوەڕێی دەستپێکردن..."; document.getElementById('status').style.color = "#1f2937";
             
-            currentPlayer = 1; selectedPiece = null; validMoves = []; isMultiCapturing = false;
+            currentPlayer = 1; mustMovePiece = null; selectedPiece = null; validMovesForUI = []; currentValidMoves = [];
             initBoard(); drawBoard();
         }
 
