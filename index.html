@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ئەپی کوردستان - دامە</title>
+    <title>ئەپی کوردستان - دامە (مۆدی دڕندە)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -91,7 +91,7 @@
         </div>
         
         <div class="control-group" id="aiLevelContainer" style="display: none;">
-            <label>ئاستی کۆمپیوتەر (بێ حەد زیرەک 100):</label>
+            <label>ئاستی کۆمپیوتەر (بێ کۆتا قورس - Minimax):</label>
             <input type="range" id="aiLevel" min="0" max="100" value="100">
         </div>
 
@@ -278,9 +278,6 @@
             return enemyVal === P1 || enemyVal === P1_KING;
         }
 
-        // =========================================================
-        // لۆژیکی یاری و گەڕان بەدوای خواردن (تەواو بێ هەڵەیە)
-        // =========================================================
         function getCaptureMovesForPiece(r, c, bState) {
             let caps = [];
             const val = bState[r][c];
@@ -385,7 +382,6 @@
             if (!selectedPiece) return;
             let caps = getCaptureMovesForPiece(selectedPiece.r, selectedPiece.c, board);
             if (caps.length > 0) {
-                // یاسای زۆرترین خواردن: تەنها ئەو خانانە پیشان دەدات کە خواردنی تری لەدوایە ئەگەر هەبێت
                 let multiCaps = caps.filter(c => {
                     let simBoard = board.map(row => [...row]);
                     simBoard[c.r][c.c] = simBoard[selectedPiece.r][selectedPiece.c];
@@ -457,7 +453,7 @@
                 let furtherCaps = getCaptureMovesForPiece(toR, toC, board);
                 if (furtherCaps.length > 0) {
                     isMultiCapturing = true; selectedPiece = { r: toR, c: toC, val: board[toR][toC] };
-                    calculateValidMoves(); // ئەپدەیت بە یاسای Max Capture
+                    calculateValidMoves(); 
                     drawBoard(); startTimer(); 
                     if (document.getElementById('gameMode').value === 'ai' && currentPlayer === 2 && isPlaying) setTimeout(makeAIMove, 700); 
                     return; 
@@ -489,64 +485,110 @@
         }
 
         // =========================================================
-        // زیرەکی دەستکرد - ئاستی ١٠٠ی بێ حەد قووڵ و بەقووەت
+        // مێشکی زیرەکی دەستکرد (Minimax - بێ کۆتا قورس)
         // =========================================================
+        function evaluateBoard(b) {
+            let score = 0;
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (b[r][c] === P2) score += (10 + r); // بەردی AI (هەرچەندە بڕواتە پێشەوە خاڵی زیاترە)
+                    else if (b[r][c] === P2_KING) score += 60; // سواری AI
+                    else if (b[r][c] === P1) score -= (10 + (7 - r)); // بەردی تۆ
+                    else if (b[r][c] === P1_KING) score -= 60; // سواری تۆ
+                }
+            }
+            return score;
+        }
+
+        function getSimulatedMoves(player, bState) {
+            let moves = [];
+            let mandatories = getAllMandatoryCaptures(player, bState);
+            if (mandatories.length > 0) {
+                mandatories.forEach(p => {
+                    let caps = getCaptureMovesForPiece(p.r, p.c, bState);
+                    caps.forEach(m => moves.push({ from: {r: p.r, c: p.c}, to: m }));
+                });
+            } else {
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        const val = bState[r][c];
+                        if ((player === 1 && (val === P1 || val === P1_KING)) || (player === 2 && (val === P2 || val === P2_KING))) {
+                            let norms = getNormalMovesForPiece(r, c, bState);
+                            norms.forEach(m => moves.push({ from: {r, c}, to: m }));
+                        }
+                    }
+                }
+            }
+            return moves;
+        }
+
+        function applySimulatedMove(bState, move, player) {
+            bState[move.to.r][move.to.c] = bState[move.from.r][move.from.c];
+            bState[move.from.r][move.from.c] = EMPTY;
+            if (move.to.capture) bState[move.to.capture.r][move.to.capture.c] = EMPTY;
+            if (player === 1 && move.to.r === 0 && bState[move.to.r][move.to.c] === P1) bState[move.to.r][move.to.c] = P1_KING;
+            if (player === 2 && move.to.r === 7 && bState[move.to.r][move.to.c] === P2) bState[move.to.r][move.to.c] = P2_KING;
+        }
+
+        function minimax(bState, depth, alpha, beta, isMaximizing) {
+            if (depth === 0) return evaluateBoard(bState);
+
+            let moves = getSimulatedMoves(isMaximizing ? 2 : 1, bState);
+            if (moves.length === 0) return isMaximizing ? -9999 : 9999;
+
+            if (isMaximizing) {
+                let maxEval = -Infinity;
+                for (let move of moves) {
+                    let simBoard = bState.map(row => [...row]);
+                    applySimulatedMove(simBoard, move, 2);
+                    let ev = minimax(simBoard, depth - 1, alpha, beta, false);
+                    maxEval = Math.max(maxEval, ev);
+                    alpha = Math.max(alpha, ev);
+                    if (beta <= alpha) break; // Alpha-Beta Pruning (بۆ خێرایی)
+                }
+                return maxEval;
+            } else {
+                let minEval = Infinity;
+                for (let move of moves) {
+                    let simBoard = bState.map(row => [...row]);
+                    applySimulatedMove(simBoard, move, 1);
+                    let ev = minimax(simBoard, depth - 1, alpha, beta, true);
+                    minEval = Math.min(minEval, ev);
+                    beta = Math.min(beta, ev);
+                    if (beta <= alpha) break;
+                }
+                return minEval;
+            }
+        }
+
         function makeAIMove() {
             if (!isPlaying) return;
+            
             if (isMultiCapturing && selectedPiece) {
                 let chosen = validMoves[Math.floor(Math.random() * validMoves.length)];
                 executeMove(chosen.r, chosen.c, selectedPiece.r, selectedPiece.c, true);
                 return;
             }
 
-            let possibleMoves = [];
-            let mandatories = getAllMandatoryCaptures(2, board);
-            
-            if (mandatories.length > 0) {
-                mandatories.forEach(p => {
-                    let caps = getCaptureMovesForPiece(p.r, p.c, board);
-                    caps.forEach(m => possibleMoves.push({ from: {r: p.r, c: p.c}, to: m }));
-                });
-            } else {
-                for (let r = 0; r < ROWS; r++) {
-                    for (let c = 0; c < COLS; c++) {
-                        if (board[r][c] === P2 || board[r][c] === P2_KING) {
-                            let norms = getNormalMovesForPiece(r, c, board);
-                            norms.forEach(m => possibleMoves.push({ from: {r, c}, to: m }));
-                        }
-                    }
-                }
-            }
-
+            let possibleMoves = getSimulatedMoves(2, board);
             if (possibleMoves.length > 0) {
                 let level = parseInt(document.getElementById('aiLevel').value);
                 let chosenMove = possibleMoves[0];
 
-                if (level >= 90) {
-                    // بیرکردنەوەی قووڵ: سەیری داهاتوو دەکات بۆ ئەوەی نەیخۆیت و خۆی بکات بە سوار
+                if (level >= 80) {
+                    // ئێرەیە مێشکە قورسەکە (سەیری ٣ هەنگاوی داهاتوو دەکات پێش ئەوەی یاری بکات)
                     let bestScore = -Infinity;
                     for (let move of possibleMoves) {
                         let simBoard = board.map(row => [...row]);
-                        simBoard[move.to.r][move.to.c] = simBoard[move.from.r][move.from.c];
-                        simBoard[move.from.r][move.from.c] = EMPTY;
-                        let score = 0;
-                        if (move.to.capture) { simBoard[move.to.capture.r][move.to.capture.c] = EMPTY; score += 20; }
-                        if (simBoard[move.to.r][move.to.c] === P2 && move.to.r === 7) { simBoard[move.to.r][move.to.c] = P2_KING; score += 50; }
+                        applySimulatedMove(simBoard, move, 2);
                         
-                        // ئایا ئەم جووڵەیە دەبێتە هۆی ئەوەی تۆ بیخۆیت؟
-                        let danger = false;
-                        for (let r=0; r<ROWS; r++) {
-                            for (let c=0; c<COLS; c++) {
-                                if (simBoard[r][c] === P1 || simBoard[r][c] === P1_KING) {
-                                    if (getCaptureMovesForPiece(r, c, simBoard).length > 0) danger = true;
-                                }
-                            }
+                        let score = minimax(simBoard, 3, -Infinity, Infinity, false);
+                        score += (Math.random() * 0.1); // کەمێک هەڕەمەکی بۆ ئەوەی هەموو جارێک هەمان یاری نەکات
+                        
+                        if (score > bestScore) {
+                            bestScore = score;
+                            chosenMove = move;
                         }
-                        if (danger) score -= 40; // ڕادەکات لە مەترسی
-                        else score += 5; // جووڵەی سەلامەت هەڵدەبژێرێت
-                        
-                        score += Math.random(); // بۆ ئەوەی هەرجارەو شێوازێک یاری بکات
-                        if (score > bestScore) { bestScore = score; chosenMove = move; }
                     }
                 } else {
                     chosenMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
@@ -554,7 +596,9 @@
 
                 selectedPiece = { r: chosenMove.from.r, c: chosenMove.from.c, val: board[chosenMove.from.r][chosenMove.from.c] };
                 calculateValidMoves();
-                executeMove(chosenMove.to.r, chosenMove.to.c, chosenMove.from.r, chosenMove.from.c, true);
+                let actualMove = validMoves.find(m => m.r === chosenMove.to.r && m.c === chosenMove.to.c);
+                if (actualMove) executeMove(actualMove.r, actualMove.c, chosenMove.from.r, chosenMove.from.c, true);
+                else executeMove(validMoves[0].r, validMoves[0].c, selectedPiece.r, selectedPiece.c, true);
             }
         }
 
