@@ -12,7 +12,7 @@
             --board-light: #deb887;
             --player1-color: #111111;
             --player2-color: #f8f9fa;
-            --highlight: rgba(34, 197, 94, 0.6);
+            --highlight: rgba(34, 197, 94, 0.7);
         }
         body {
             font-family: 'Tahoma', sans-serif;
@@ -53,7 +53,7 @@
         .cell { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; position: relative; }
         .cell.dark { background-color: var(--board-dark); }
         .cell.light { background-color: var(--board-light); }
-        .cell.highlight { background-color: var(--highlight); cursor: pointer; border: 2px solid #16a34a; box-sizing: border-box; }
+        .cell.highlight { background-color: var(--highlight); cursor: pointer; border: 3px solid #16a34a; box-sizing: border-box; }
         
         .piece {
             width: 80%; height: 80%; border-radius: 50%;
@@ -138,7 +138,6 @@
     <div class="board" id="board"></div>
 
     <script>
-        // === دەنگی پڕۆفیشناڵ ===
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx;
 
@@ -174,14 +173,13 @@
         document.body.addEventListener('touchstart', initAudio, { once: true });
         document.body.addEventListener('click', initAudio, { once: true });
 
-        // === لۆژیکی سەرەکی یارییەکە ===
         const ROWS = 8, COLS = 8;
         let board = [];
         let currentPlayer = 1; 
         let selectedPiece = null;
         let validMoves = [];
         let isMultiCapturing = false; 
-        let isPlaying = false; // کۆنتڕۆڵی دەستپێکردن/وەستان
+        let isPlaying = false; 
         const EMPTY = 0, P1 = 1, P2 = 2, P1_KING = 3, P2_KING = 4;
 
         let timerInterval;
@@ -240,7 +238,6 @@
             resetGame(true);
         }
 
-        // === ئۆنلاین ===
         function setupOnline() {
             myId = Math.floor(1000 + Math.random() * 9000).toString();
             peer = new Peer(myId);
@@ -279,7 +276,6 @@
             });
         }
 
-        // === دروستکردنی بۆرد و یاری ===
         function initBoard() {
             board = Array(ROWS).fill().map(() => Array(COLS).fill(EMPTY));
             for (let c = 0; c < COLS; c++) { board[1][c] = P2; board[2][c] = P2; }
@@ -316,7 +312,6 @@
             }
         }
 
-        // === یاساکانی جووڵە و خواردن ===
         function isValid(r, c) { return r >= 0 && r < ROWS && c >= 0 && c < COLS; }
         
         function isEnemy(enemyVal, myVal) {
@@ -325,24 +320,53 @@
             return enemyVal === P1 || enemyVal === P1_KING;
         }
 
+        // ==========================================
+        // یاسای نوێی سوار (فڕین و زنجیرە خواردن)
+        // ==========================================
         function getCaptureMovesForPiece(r, c) {
             let caps = [];
             const val = board[r][c];
             const isKing = (val === P1_KING || val === P2_KING);
-            const dir = (val === P1 || val === P1_KING) ? -1 : 1;
-            const directions = [[dir, 0], [0, -1], [0, 1]];
-            if (isKing) directions.push([-dir, 0]);
-
-            directions.forEach(d => {
-                let nr = r + d[0], nc = c + d[1];
-                let jumpR = r + (d[0]*2), jumpC = c + (d[1]*2);
-                if (isValid(jumpR, jumpC) && board[jumpR][jumpC] === EMPTY && isValid(nr, nc)) {
-                    let enemy = board[nr][nc];
-                    if (enemy !== EMPTY && isEnemy(enemy, val)) {
-                        caps.push({ r: jumpR, c: jumpC, capture: {r: nr, c: nc} });
+            
+            if (isKing) {
+                // سوار دەتوانێت بە چوار ئاڕاستەدا بڕوات
+                const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+                directions.forEach(d => {
+                    let nr = r + d[0], nc = c + d[1];
+                    let foundEnemy = false;
+                    let enemyPos = null;
+                    
+                    while (isValid(nr, nc)) {
+                        let cellVal = board[nr][nc];
+                        if (cellVal !== EMPTY) {
+                            if (!foundEnemy && isEnemy(cellVal, val)) {
+                                foundEnemy = true;
+                                enemyPos = {r: nr, c: nc};
+                            } else {
+                                break; // ڕێگەکە گیراوە بە بەردی خۆت یان دووەم بەرد
+                            }
+                        } else if (foundEnemy) {
+                            // دوای دۆزینەوەی دوژمن، هەر خانەیەکی بەتاڵ دەبێتە شوێنی نیشتنەوەی دروست
+                            caps.push({ r: nr, c: nc, capture: enemyPos });
+                        }
+                        nr += d[0]; nc += d[1];
                     }
-                }
-            });
+                });
+            } else {
+                // بەردی ئاسایی
+                const dir = (val === P1) ? -1 : 1;
+                const directions = [[dir, 0], [0, -1], [0, 1]];
+                directions.forEach(d => {
+                    let nr = r + d[0], nc = c + d[1];
+                    let jumpR = r + (d[0]*2), jumpC = c + (d[1]*2);
+                    if (isValid(jumpR, jumpC) && board[jumpR][jumpC] === EMPTY && isValid(nr, nc)) {
+                        let enemy = board[nr][nc];
+                        if (enemy !== EMPTY && isEnemy(enemy, val)) {
+                            caps.push({ r: jumpR, c: jumpC, capture: {r: nr, c: nc} });
+                        }
+                    }
+                });
+            }
             return caps;
         }
 
@@ -350,16 +374,27 @@
             let moves = [];
             const val = board[r][c];
             const isKing = (val === P1_KING || val === P2_KING);
-            const dir = (val === P1 || val === P1_KING) ? -1 : 1;
-            const directions = [[dir, 0], [0, -1], [0, 1]];
-            if (isKing) directions.push([-dir, 0]);
-
-            directions.forEach(d => {
-                let nr = r + d[0], nc = c + d[1];
-                if (isValid(nr, nc) && board[nr][nc] === EMPTY) {
-                    moves.push({ r: nr, c: nc, capture: null });
-                }
-            });
+            
+            if (isKing) {
+                const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+                directions.forEach(d => {
+                    let nr = r + d[0], nc = c + d[1];
+                    // تا ڕێگەکە بەتاڵ بێت دەڕوات
+                    while (isValid(nr, nc) && board[nr][nc] === EMPTY) {
+                        moves.push({ r: nr, c: nc, capture: null });
+                        nr += d[0]; nc += d[1];
+                    }
+                });
+            } else {
+                const dir = (val === P1) ? -1 : 1;
+                const directions = [[dir, 0], [0, -1], [0, 1]];
+                directions.forEach(d => {
+                    let nr = r + d[0], nc = c + d[1];
+                    if (isValid(nr, nc) && board[nr][nc] === EMPTY) {
+                        moves.push({ r: nr, c: nc, capture: null });
+                    }
+                });
+            }
             return moves;
         }
 
@@ -438,7 +473,6 @@
             }
         }
 
-        // کۆتایی یاری و ئەنجامەکان
         function declareWinner(losingPlayer) {
             isPlaying = false;
             clearInterval(timerInterval);
@@ -450,10 +484,9 @@
 
             const mode = document.getElementById('gameMode').value;
             
-            // ئەگەر بەرامبەر کۆمپیوتەر بێت یان ئۆنلاین
             if (mode === 'ai' || mode === 'online') {
                 let iAmPlayer = amIPlayer1 ? 1 : 2;
-                if (mode === 'ai') iAmPlayer = 1; // لەگەڵ AI تۆ هەمیشە یاریزانی یەکیت
+                if (mode === 'ai') iAmPlayer = 1; 
                 
                 if (losingPlayer === iAmPlayer) {
                     setTimeout(() => alert("بەداخەوە دووبارە هەوڵدەوە هیچ نیە خەمێ مەخۆ حاجی"), 300);
@@ -461,7 +494,6 @@
                     setTimeout(() => alert("پیرۆزە یاریەکەت بردەوە"), 300);
                 }
             } else {
-                // دوو یاریزان لەسەر یەک شاشە
                 let winner = losingPlayer === 1 ? "سەرەوە" : "خوارەوە";
                 setTimeout(() => alert(`پیرۆزە یاریزانی ${winner} یاریەکەی بردەوە!`), 300);
             }
@@ -512,10 +544,10 @@
             }
 
             let promoted = false;
+            // ئەگەر بەردی ئاسایی گەیشتە کۆتایی، دەبێتە سوار و نۆرەکەی کۆتایی دێت (یاسای تورکی)
             if (currentPlayer === 1 && toR === 0 && board[toR][toC] === P1) { board[toR][toC] = P1_KING; promoted = true; }
             if (currentPlayer === 2 && toR === 7 && board[toR][toC] === P2) { board[toR][toC] = P2_KING; promoted = true; }
 
-            // زنجیرە خواردن
             if (wasCapture && !promoted) {
                 let furtherCaps = getCaptureMovesForPiece(toR, toC);
                 if (furtherCaps.length > 0) {
@@ -524,7 +556,7 @@
                     validMoves = furtherCaps;
                     drawBoard();
                     startTimer(); 
-                    if (document.getElementById('gameMode').value === 'ai' && currentPlayer === 2) {
+                    if (document.getElementById('gameMode').value === 'ai' && currentPlayer === 2 && isPlaying) {
                         setTimeout(makeAIMove, 600); 
                     }
                     return; 
@@ -539,7 +571,7 @@
             updateStatus();
             drawBoard();
             
-            if (checkGameOver()) return; // پشکنین بۆ کۆتایی یاری
+            if (checkGameOver()) return; 
 
             startTimer();
 
@@ -549,10 +581,9 @@
             }
         }
 
-        // === کاتژمێر ===
         function startTimer() {
             clearInterval(timerInterval);
-            if (!isPlaying) return; // ئەگەر یاری وەستابێت، کاتژمێر مەخەرە کار
+            if (!isPlaying) return; 
 
             timeLeft = 30;
             const tDisplay = document.getElementById('timeDisplay');
@@ -617,7 +648,6 @@
             }
         }
 
-        // === زیرەکی دەستکرد AI ===
         function makeAIMove() {
             if (!isPlaying) return;
 
@@ -684,7 +714,6 @@
             drawBoard();
         }
 
-        // دانانی تەختە بێ ئەوەی کاتژمێر یان یاری دەستپێبکات
         initBoard();
         drawBoard();
 
