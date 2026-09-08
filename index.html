@@ -7,9 +7,13 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root {
-            --bg-color: #f3f4f6; --board-dark: #b58863; --board-light: #f0d9b5; /* ڕەنگی تەختەی پڕۆفیشناڵ */
-            --player1-color: #111111; --player2-color: #f8f9fa;
-            --highlight: rgba(34, 197, 94, 0.7); --danger: rgba(239, 68, 68, 0.5);
+            --bg-color: #f3f4f6; 
+            --board-dark: #8b4513; /* قاوەیی تۆخ وەک پێشووتر */
+            --board-light: #deb887; /* ڕەنگی تەختەی کراوە */
+            --player1-color: #111111; 
+            --player2-color: #f8f9fa;
+            --highlight: rgba(34, 197, 94, 0.7); 
+            --danger: rgba(239, 68, 68, 0.5);
         }
         body {
             font-family: 'Tahoma', sans-serif; background-color: var(--bg-color);
@@ -25,7 +29,7 @@
             max-width: 450px; margin-bottom: 10px; box-sizing: border-box;
             transition: all 0.4s ease-out;
             overflow: hidden;
-            max-height: 1000px; /* بۆ ئەنیمەیشنی ونبوون */
+            max-height: 1000px; 
         }
         .controls-container.hidden {
             max-height: 0; padding: 0; margin: 0; opacity: 0; border: none;
@@ -40,13 +44,13 @@
             display: none; flex-direction: column; gap: 10px; margin-top: 10px;
         }
         
-        /* شاشەی یارییەکە - شاز و سادە */
+        /* شاشەی یارییەکە */
         .game-header {
             display: flex; justify-content: space-between; align-items: center; 
             width: 100%; max-width: 450px; margin-bottom: 10px;
         }
         .timer-box {
-            background: #9ca3af; color: white; padding: 8px 15px; border-radius: 20px;
+            background: #ef4444; color: white; padding: 8px 15px; border-radius: 20px;
             font-size: 1.2rem; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.2);
             display: flex; align-items: center; gap: 5px; transition: background 0.3s;
         }
@@ -82,12 +86,25 @@
         .piece.p2 { background-color: var(--player2-color); }
         .piece.selected { transform: scale(1.15); box-shadow: 0 0 15px yellow; border: 2px solid yellow; z-index: 10; }
         
-        /* تاجی سوار بە ڕەنگی کوردستان */
+        /* دیزاینی نوێی کینگ بە ئاڵای کوردستان و زێڕین */
+        .piece.king {
+            border: 3px solid #FFD700 !important; /* چوارچێوەی زێڕین */
+            box-shadow: 0 0 15px #FFD700, inset 0 -4px 6px rgba(0,0,0,0.5) !important; /* درەوشانەوەی زێڕین */
+        }
         .piece.king::after { 
-            content: '👑'; font-size: 1.5rem; position: absolute;
-            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5));
-            /* کاریگەری ڕەنگاوڕەنگی سەر تاج */
-            text-shadow: 0px -2px 0px #ED2024, 0px 2px 0px #278E43;
+            content: '☀️'; /* خۆری کوردستان */
+            font-size: 14px;
+            position: absolute;
+            background: linear-gradient(to bottom, #ED2024 33.3%, #FFFFFF 33.3%, #FFFFFF 66.6%, #278E43 66.6%); /* ئاڵای کوردستان */
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 1px solid #FFD700;
+            color: #FEBD11;
+            text-shadow: 0px 0px 2px rgba(0,0,0,0.8);
         }
         
         .btn-container { width: 100%; max-width: 450px; display: flex; gap: 10px; margin-top: 15px; }
@@ -141,7 +158,7 @@
             <label>بەردی ١ (خوارەوە):</label>
             <input type="color" id="color1" value="#111111" onchange="updateColors()">
             <label>بەردی ٢ (سەرەوە):</label>
-            <input type="color" id="color2" value="#ffffff" onchange="updateColors()">
+            <input type="color" id="color2" value="#ff0000" onchange="updateColors()">
         </div>
     </div>
 
@@ -149,8 +166,8 @@
     <div id="alertBox" class="alert-box"></div>
     
     <div class="game-header">
-        <div id="status" class="status">چاوەڕێی دەستپێکردن...</div>
         <div class="timer-box" id="timerBox">⏱️ <span id="timeDisplay">--</span></div>
+        <div id="status" class="status">چاوەڕێی دەستپێکردن...</div>
     </div>
 
     <div class="board-container">
@@ -159,8 +176,8 @@
 
     <!-- دوگمەکانی خوارەوە -->
     <div class="btn-container">
-        <button id="togglePlayBtn" class="btn btn-green" onclick="togglePlay()">دەستپێکردنی یاری ▶️</button>
         <button class="btn btn-blue" onclick="resetGame(true)">ڕیفرێش 🔄</button>
+        <button id="togglePlayBtn" class="btn btn-green" onclick="togglePlay()">دەستپێکردنی یاری ▶️</button>
     </div>
 
     <script>
@@ -221,13 +238,12 @@
             if(isPlaying) updateStatus();
         }
 
-        // === لێرەدا دیزاینەکە دەگۆڕێت کاتێک یاری دەست پێدەکات ===
         function toggleUIElements(hide) {
             const panel = document.getElementById('controlsPanel');
             const header = document.getElementById('mainHeader');
             if (hide) {
                 panel.classList.add('hidden');
-                header.style.fontSize = "1.5rem"; // بچووککردنەوەی ناوەکە
+                header.style.fontSize = "1.5rem"; 
             } else {
                 panel.classList.remove('hidden');
                 header.style.fontSize = "2.2rem";
@@ -239,14 +255,14 @@
             const btn = document.getElementById('togglePlayBtn');
             if (isPlaying) {
                 btn.innerText = "وەستاندنی یاری ⏸️"; btn.className = "btn btn-orange";
-                toggleUIElements(true); // شاردنەوەی مینیو
+                toggleUIElements(true); 
                 prepareTurn();
                 updateStatus(); startTimer();
                 const mode = document.getElementById('gameMode').value;
                 if (mode === 'ai' && currentPlayer === 2) setTimeout(makeAIMove, 400);
             } else {
                 btn.innerText = "دەستپێکردنەوە ▶️"; btn.className = "btn btn-green";
-                toggleUIElements(false); // هێنانەوەی مینیو
+                toggleUIElements(false); 
                 clearInterval(timerInterval);
                 document.getElementById('timerBox').style.background = "#9ca3af";
                 document.getElementById('status').innerText = "یاری وەستاوە...";
@@ -523,14 +539,19 @@
             document.getElementById('togglePlayBtn').className = "btn btn-blue";
             document.getElementById('timerBox').style.background = "#9ca3af";
             document.getElementById('timeDisplay').innerText = "کۆتایی";
-            toggleUIElements(false); // هێنانەوەی مینیو لە کۆتایی یاری
+            toggleUIElements(false);
 
             const mode = document.getElementById('gameMode').value;
             if (mode === 'ai' || mode === 'online') {
                 let iAmPlayer = amIPlayer1 ? 1 : 2;
                 if (mode === 'ai') iAmPlayer = 1; 
-                if (losingPlayer === iAmPlayer) setTimeout(() => alert("بەداخەوە دووبارە هەوڵدەوە هیچ نیە خەمێ مەخۆ حاجی"), 300);
-                else setTimeout(() => alert("پیرۆزە یاریەکەت بردەوە"), 300);
+                
+                // لێرەدا پەیامی بردنەوە یان دۆڕان دەگۆڕدرێت
+                if (losingPlayer === iAmPlayer) {
+                    setTimeout(() => alert("بەداخەوە، دووبارە هەوڵدە"), 300);
+                } else {
+                    setTimeout(() => alert("پیرۆزە"), 300);
+                }
             } else {
                 let winner = losingPlayer === 1 ? "سەرەوە" : "خوارەوە";
                 setTimeout(() => alert(`پیرۆزە یاریزانی ${winner} یاریەکەی بردەوە!`), 300);
@@ -645,7 +666,9 @@
             let player = isMaximizing ? 2 : 1;
             let possibleMoves = getSimulatedMoves(player, bState, mustMoveR, mustMoveC);
 
-            if (possibleMoves.length === 0) return isMaximizing ? -99999 : 99999;
+            if (possibleMoves.length === 0) {
+                return isMaximizing ? -99999 : 99999;
+            }
 
             if (isMaximizing) {
                 let maxEval = -Infinity;
@@ -747,14 +770,14 @@
             
             if (mode === 'online') {
                 if ((currentPlayer === 1 && amIPlayer1) || (currentPlayer === 2 && !amIPlayer1)) {
-                    statusDiv.innerText = "نۆرەی تۆیە (بەردەکانی خۆت)";
+                    statusDiv.innerText = "نۆرەی تۆیە";
                 } else {
                     statusDiv.innerText = "نۆرەی هاوڕێکەتە...";
                 }
             } else if (mode === 'ai') {
                 statusDiv.innerText = currentPlayer === 1 ? "نۆرەی تۆیە" : "نۆرەی کۆمپیوتەرە...";
             } else {
-                statusDiv.innerText = currentPlayer === 1 ? "نۆرەی یاریزانی خوارەوەیە" : "نۆرەی یاریزانی سەرەوەیە";
+                statusDiv.innerText = currentPlayer === 1 ? "نۆرەی خوارەوەیە" : "نۆرەی سەرەوەیە";
             }
             statusDiv.style.color = colorHex;
         }
@@ -769,7 +792,7 @@
             btn.innerText = "دەستپێکردنی یاری ▶️"; btn.className = "btn btn-green";
             document.getElementById('status').innerText = "چاوەڕێی دەستپێکردن..."; document.getElementById('status').style.color = "#1f2937";
             
-            toggleUIElements(false); // هێنانەوەی مینیو
+            toggleUIElements(false); 
             
             currentPlayer = 1; mustMovePiece = null; selectedPiece = null; validMovesForUI = []; currentValidMoves = [];
             
