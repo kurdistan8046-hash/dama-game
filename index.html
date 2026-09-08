@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ئەپی کوردستان - دامە (مستەوای 1000)</title>
+    <title>ئەپی کوردستان - دامە (مستەوای 1000 جێگیر)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -36,10 +36,16 @@
             display: flex; align-items: center; gap: 10px; justify-content: center; transition: background 0.3s;
         }
         .alert-box { color: #ef4444; font-weight: bold; height: 24px; margin-bottom: 5px; font-size: 1.1rem; text-align: center; }
+        
         .board {
             display: grid; grid-template-columns: repeat(8, 1fr); width: 100%; max-width: 450px; aspect-ratio: 1/1;
             border: 4px solid #4a3728; box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            transition: transform 0.6s ease;
         }
+        .board.flipped { transform: rotate(180deg); }
+        .board.flipped .piece { transform: rotate(180deg); }
+        .board.flipped .piece.selected { transform: rotate(180deg) scale(1.15); }
+
         .cell { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; position: relative; }
         .cell.dark { background-color: var(--board-dark); }
         .cell.light { background-color: var(--board-light); }
@@ -87,7 +93,7 @@
         </div>
         
         <div class="control-group" id="aiLevelContainer" style="display: none;">
-            <label>ئاستی کۆمپیوتەر (مستەوای 1000 - بێ کۆتا قورس):</label>
+            <label>ئاستی کۆمپیوتەر (بێ کۆتا قورس - جێگیر 1000):</label>
             <input type="range" id="aiLevel" min="0" max="1000" value="1000">
         </div>
 
@@ -156,12 +162,11 @@
         let board = [];
         let currentPlayer = 1; 
         
-        // بزوێنەری زۆرترین خواردن
         let currentValidMoves = []; 
         let mustMovePiece = null; 
         let selectedPiece = null;
         let isPlaying = false; 
-        let validMovesForUI = []; // بۆ پیشاندان لەسەر شاشە
+        let validMovesForUI = []; 
         const EMPTY = 0, P1 = 1, P2 = 2, P1_KING = 3, P2_KING = 4;
 
         let timerInterval;
@@ -203,6 +208,16 @@
             if (mode === 'online' && !peer) setupOnline();
             else if (mode !== 'online') { isOnline = false; if(conn) conn.close(); }
             resetGame(true);
+        }
+
+        function updatePerspective() {
+            const boardDiv = document.getElementById('board');
+            const mode = document.getElementById('gameMode').value;
+            if (mode === 'online' && !amIPlayer1) {
+                boardDiv.classList.add('flipped');
+            } else {
+                boardDiv.classList.remove('flipped');
+            }
         }
 
         function setupOnline() {
@@ -277,9 +292,6 @@
             return enemyVal === P1 || enemyVal === P1_KING;
         }
 
-        // =================================================================
-        // لۆژیکی ستانداردی جیهانی (بەدواداگەڕانی زۆرترین خواردن - Max Capture)
-        // =================================================================
         function getDirectCaptures(r, c, bState, pieceVal) {
             let caps = [];
             const isKing = (pieceVal === P1_KING || pieceVal === P2_KING);
@@ -293,7 +305,7 @@
                         let cellVal = bState[nr][nc];
                         if (cellVal !== EMPTY) {
                             if (!foundEnemy && isEnemy(cellVal, player)) { foundEnemy = true; enemyPos = {r: nr, c: nc}; } 
-                            else { break; } // ڕێگا گیرا
+                            else { break; } 
                         } else if (foundEnemy) {
                             caps.push({ r: nr, c: nc, capture: enemyPos });
                         }
@@ -336,7 +348,6 @@
             return moves;
         }
 
-        // دۆزینەوەی هەموو ڕێڕەوەکانی خواردن بۆ ئەوەی درێژترینیان هەڵبژێرێت
         function getMaxCapturePaths(player, bState, startR = -1, startC = -1, specificPieceVal = EMPTY) {
             let maxCaptures = 0;
             let bestPaths = [];
@@ -357,7 +368,7 @@
                     let nextBoard = currentBoard.map(row => [...row]);
                     nextBoard[cap.r][cap.c] = pVal;
                     nextBoard[r][c] = EMPTY;
-                    nextBoard[cap.capture.r][cap.capture.c] = EMPTY; // بەردەکە ڕاستەوخۆ لادەبرێت بۆ ئەوەی ڕێگا بکرێتەوە
+                    nextBoard[cap.capture.r][cap.capture.c] = EMPTY; 
 
                     let nextPieceVal = pVal;
                     if (pVal === P1 && cap.r === 0) nextPieceVal = P1_KING;
@@ -395,7 +406,6 @@
 
             currentValidMoves = [];
             if (capData.maxCaptures > 0) {
-                // دەبێت زۆرترین بخوات
                 for (let path of capData.bestPaths) {
                     currentValidMoves.push(path[0]);
                 }
@@ -411,7 +421,6 @@
                 }
             }
 
-            // سڕینەوەی دووبارەکان
             currentValidMoves = currentValidMoves.filter((v,i,a) => a.findIndex(t => t.from.r === v.from.r && t.from.c === v.from.c && t.to.r === v.to.r && t.to.c === v.to.c) === i);
 
             if (currentValidMoves.length === 0) {
@@ -475,7 +484,7 @@
             if (broadcast && isOnline && conn) conn.send({ type: 'move', toR, toC, fromR, fromC });
 
             let move = currentValidMoves.find(m => m.from.r === fromR && m.from.c === fromC && m.to.r === toR && m.to.c === toC);
-            if (!move) return; // پاراستن
+            if (!move) return; 
 
             board[toR][toC] = board[fromR][fromC]; board[fromR][fromC] = EMPTY;
             
@@ -502,7 +511,7 @@
 
             mustMovePiece = null; selectedPiece = null; validMovesForUI = [];
             currentPlayer = currentPlayer === 1 ? 2 : 1;
-            prepareTurn(); // ئامادەکردنی نۆرەی داهاتوو
+            prepareTurn(); 
             updateStatus(); drawBoard();
             
             startTimer();
@@ -525,7 +534,7 @@
         }
 
         // =========================================================
-        // مێشکی ڕاوکەری زیرەکی دەستکرد (Minimax Depth 5 - بێ کۆتا قورس)
+        // مێشکی جێگیری کۆمپیوتەر (Minimax Depth 4 - بەبێ هەڵە و هەڕەمەکی)
         // =========================================================
         function evaluateBoard(b) {
             let score = 0;
@@ -538,7 +547,6 @@
                     else if (b[r][c] === P1_KING) { score -= 500; p1Pieces.push({r, c, k: true}); }
                 }
             }
-            // فەرمانی ڕاوکردن: ئەگەر سواری هەبوو یەکسەر لێت نزیک دەبێتەوە بۆ کوشتن!
             if (p2Pieces.length > 0 && p1Pieces.length > 0) {
                 let distScore = 0;
                 for (let p2 of p2Pieces) {
@@ -548,7 +556,7 @@
                             let dist = Math.abs(p2.r - p1.r) + Math.abs(p2.c - p1.c);
                             if (dist < minDist) minDist = dist;
                         }
-                        distScore -= minDist; // نزیکبوونەوە خاڵی زیاد دەکات
+                        distScore -= minDist; 
                     }
                 }
                 score += distScore * 2;
@@ -602,7 +610,7 @@
                     
                     let nextMustR = -1, nextMustC = -1, nextIsMax = false;
                     if (wasCapture && !promoted && getMaxCapturePaths(2, simBoard, move.to.r, move.to.c, simBoard[move.to.r][move.to.c]).maxCaptures > 0) {
-                        nextMustR = move.to.r; nextMustC = move.to.c; nextIsMax = true; // نۆرەی خۆیەتی بەردەوام بێت
+                        nextMustR = move.to.r; nextMustC = move.to.c; nextIsMax = true; 
                     }
                     
                     let ev = minimax(simBoard, nextIsMax ? depth : depth - 1, alpha, beta, nextIsMax, nextMustR, nextMustC);
@@ -626,7 +634,7 @@
                     
                     let nextMustR = -1, nextMustC = -1, nextIsMax = true;
                     if (wasCapture && !promoted && getMaxCapturePaths(1, simBoard, move.to.r, move.to.c, simBoard[move.to.r][move.to.c]).maxCaptures > 0) {
-                        nextMustR = move.to.r; nextMustC = move.to.c; nextIsMax = false; // نۆرەی تۆیەتی بەردەوام بیت
+                        nextMustR = move.to.r; nextMustC = move.to.c; nextIsMax = false; 
                     }
                     
                     let ev = minimax(simBoard, nextIsMax ? depth - 1 : depth, alpha, beta, nextIsMax, nextMustR, nextMustC);
@@ -642,11 +650,11 @@
             if (!isPlaying || currentValidMoves.length === 0) return;
 
             let level = parseInt(document.getElementById('aiLevel').value);
-            let chosenMove = currentValidMoves[0];
-
+            
             if (level >= 900) {
                 let bestScore = -Infinity;
-                // بێ کۆتا قورس: 5 هەنگاو دەخوێنێتەوە (قووڵترین لێکدانەوە)
+                let bestMoves = [];
+                // ئێرە جێگیر کراوە کە بێ هەڵە ٤ قۆناغ بخوێنێتەوە و باشترین هەڵبژێرێت بێ ئەوەی هەڕەمەکی بێت
                 for (let move of currentValidMoves) {
                     let simBoard = board.map(row => [...row]);
                     simBoard[move.to.r][move.to.c] = simBoard[move.from.r][move.from.c];
@@ -663,22 +671,42 @@
                         nextMustR = move.to.r; nextMustC = move.to.c; nextIsMax = true;
                     }
 
-                    let score = minimax(simBoard, nextIsMax ? 5 : 4, -Infinity, Infinity, nextIsMax, nextMustR, nextMustC);
-                    score += (Math.random() * 0.1); 
+                    let score = minimax(simBoard, nextIsMax ? 4 : 3, -Infinity, Infinity, nextIsMax, nextMustR, nextMustC);
                     
-                    if (score > bestScore) { bestScore = score; chosenMove = move; }
+                    if (score > bestScore) { 
+                        bestScore = score; 
+                        bestMoves = [move]; 
+                    } else if (score === bestScore) {
+                        bestMoves.push(move);
+                    }
                 }
+                
+                // ئەگەر چەند جووڵەیەکی باش هەبوو، یەکێکیان هەڵدەبژێرێت
+                let chosenMove = bestMoves[Math.floor(Math.random() * bestMoves.length)];
+                executeMove(chosenMove.to.r, chosenMove.to.c, chosenMove.from.r, chosenMove.from.c, true);
             } else {
-                chosenMove = currentValidMoves[Math.floor(Math.random() * currentValidMoves.length)];
+                let chosenMove = currentValidMoves[Math.floor(Math.random() * currentValidMoves.length)];
+                executeMove(chosenMove.to.r, chosenMove.to.c, chosenMove.from.r, chosenMove.from.c, true);
             }
-
-            executeMove(chosenMove.to.r, chosenMove.to.c, chosenMove.from.r, chosenMove.from.c, true);
         }
 
         function updateStatus() {
             const statusDiv = document.getElementById('status');
-            statusDiv.innerText = currentPlayer === 1 ? "نۆرەی یاریزانی خوارەوەیە" : "نۆرەی یاریزانی سەرەوەیە";
-            statusDiv.style.color = currentPlayer === 1 ? document.getElementById('color1').value : document.getElementById('color2').value;
+            const mode = document.getElementById('gameMode').value;
+            let colorHex = currentPlayer === 1 ? document.getElementById('color1').value : document.getElementById('color2').value;
+            
+            if (mode === 'online') {
+                if ((currentPlayer === 1 && amIPlayer1) || (currentPlayer === 2 && !amIPlayer1)) {
+                    statusDiv.innerText = "نۆرەی تۆیە (بەردەکانی خۆت)";
+                } else {
+                    statusDiv.innerText = "نۆرەی هاوڕێکەتە...";
+                }
+            } else if (mode === 'ai') {
+                statusDiv.innerText = currentPlayer === 1 ? "نۆرەی تۆیە" : "نۆرەی کۆمپیوتەرە...";
+            } else {
+                statusDiv.innerText = currentPlayer === 1 ? "نۆرەی یاریزانی خوارەوەیە" : "نۆرەی یاریزانی سەرەوەیە";
+            }
+            statusDiv.style.color = colorHex;
         }
 
         function resetGame(broadcast = false) {
@@ -692,9 +720,12 @@
             document.getElementById('status').innerText = "چاوەڕێی دەستپێکردن..."; document.getElementById('status').style.color = "#1f2937";
             
             currentPlayer = 1; mustMovePiece = null; selectedPiece = null; validMovesForUI = []; currentValidMoves = [];
+            
+            updatePerspective(); 
             initBoard(); drawBoard();
         }
 
+        updatePerspective();
         initBoard(); drawBoard();
     </script>
 </body>
