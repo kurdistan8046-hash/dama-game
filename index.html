@@ -8,8 +8,8 @@
     <style>
         :root {
             --bg-color: #f3f4f6; 
-            --board-dark: #8b4513; /* قاوەیی تۆخ وەک پێشووتر */
-            --board-light: #deb887; /* ڕەنگی تەختەی کراوە */
+            --board-dark: #8b4513; /* قاوەیی تۆخە جوانەکە کە داوات کرد */
+            --board-light: #deb887; /* ڕەنگە کراوەکە کە لەگەڵیدا دەگونجێت */
             --player1-color: #111111; 
             --player2-color: #f8f9fa;
             --highlight: rgba(34, 197, 94, 0.7); 
@@ -44,7 +44,7 @@
             display: none; flex-direction: column; gap: 10px; margin-top: 10px;
         }
         
-        /* شاشەی یارییەکە */
+        /* شاشەی یارییەکە - شاز و سادە */
         .game-header {
             display: flex; justify-content: space-between; align-items: center; 
             width: 100%; max-width: 450px; margin-bottom: 10px;
@@ -88,14 +88,14 @@
         
         /* دیزاینی نوێی کینگ بە ئاڵای کوردستان و زێڕین */
         .piece.king {
-            border: 3px solid #FFD700 !important; /* چوارچێوەی زێڕین */
-            box-shadow: 0 0 15px #FFD700, inset 0 -4px 6px rgba(0,0,0,0.5) !important; /* درەوشانەوەی زێڕین */
+            border: 3px solid #FFD700 !important; 
+            box-shadow: 0 0 15px #FFD700, inset 0 -4px 6px rgba(0,0,0,0.5) !important; 
         }
         .piece.king::after { 
-            content: '☀️'; /* خۆری کوردستان */
+            content: '☀️'; 
             font-size: 14px;
             position: absolute;
-            background: linear-gradient(to bottom, #ED2024 33.3%, #FFFFFF 33.3%, #FFFFFF 66.6%, #278E43 66.6%); /* ئاڵای کوردستان */
+            background: linear-gradient(to bottom, #ED2024 33.3%, #FFFFFF 33.3%, #FFFFFF 66.6%, #278E43 66.6%); 
             width: 26px;
             height: 26px;
             border-radius: 50%;
@@ -158,7 +158,7 @@
             <label>بەردی ١ (خوارەوە):</label>
             <input type="color" id="color1" value="#111111" onchange="updateColors()">
             <label>بەردی ٢ (سەرەوە):</label>
-            <input type="color" id="color2" value="#ff0000" onchange="updateColors()">
+            <input type="color" id="color2" value="#f8f9fa" onchange="updateColors()">
         </div>
     </div>
 
@@ -539,14 +539,14 @@
             document.getElementById('togglePlayBtn').className = "btn btn-blue";
             document.getElementById('timerBox').style.background = "#9ca3af";
             document.getElementById('timeDisplay').innerText = "کۆتایی";
-            toggleUIElements(false);
+            toggleUIElements(false); 
 
             const mode = document.getElementById('gameMode').value;
             if (mode === 'ai' || mode === 'online') {
                 let iAmPlayer = amIPlayer1 ? 1 : 2;
                 if (mode === 'ai') iAmPlayer = 1; 
                 
-                // لێرەدا پەیامی بردنەوە یان دۆڕان دەگۆڕدرێت
+                // پەیامی دۆڕان و بردنەوە
                 if (losingPlayer === iAmPlayer) {
                     setTimeout(() => alert("بەداخەوە، دووبارە هەوڵدە"), 300);
                 } else {
