@@ -7,38 +7,44 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root {
-            --bg-color: #1a3c28; /* باکگراوندی سەوزی تاریک و کلاسیک کە چاو نائێشێنێت */
-            --board-dark: #8b4513; 
-            --board-light: #deb887; 
-            --player1-color: #111111; 
-            --player2-color: #f8f9fa;
+            /* ڕەنگەکانی بۆردەکە گەڕێندرانەوە بۆ شێوە دارێکی جوان و ڕوون */
+            --board-dark: #7a4b27; 
+            --board-light: #dcb38a; 
+            
+            --player1-color: #1a1a1a; 
+            --player2-color: #f1f1f1;
             --highlight: rgba(34, 197, 94, 0.7); 
-            --danger: rgba(239, 68, 68, 0.5);
+            --danger: rgba(239, 68, 68, 0.7);
         }
         body {
-            font-family: 'Tahoma', sans-serif; background-color: var(--bg-color);
+            font-family: 'Tahoma', sans-serif; 
+            /* باکگراوندی دەرەوە کرا بە سەوزێکی تاریکی نەرم کە چاو نائێشێنێت و تەرکیز تێک نادات */
+            background: #15261b radial-gradient(circle at center, #223f2d 0%, #0a130d 100%);
+            color: #f1f5f9;
             margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center;
-            touch-action: manipulation; min-height: 100vh; /* بۆ ئەوەی دوگمەکان بچنە خوارەوە */
+            touch-action: manipulation; min-height: 100vh;
         }
         .header { text-align: center; margin-bottom: 5px; transition: all 0.3s; }
         
-        /* بەشی کۆنتڕۆڵەکان کە لە کاتی یاری ون دەبن */
+        /* بەشی کۆنتڕۆڵەکان */
         .controls-container {
-            background: rgba(255, 255, 255, 0.95); padding: 15px; border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5); width: 100%;
+            background: rgba(20, 30, 25, 0.85); padding: 15px; border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.6); width: 100%;
             max-width: 450px; margin-bottom: 10px; box-sizing: border-box;
             transition: all 0.4s ease-out; overflow: hidden; max-height: 1000px; 
+            border: 1px solid #2d4a3e;
         }
         .controls-container.hidden {
             max-height: 0; padding: 0; margin: 0; opacity: 0; border: none;
         }
 
-        .control-group { margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; color: #333; font-weight: bold;}
+        .control-group { margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; color: #e2e8f0; font-weight: bold;}
         select, input[type="color"], input[type="range"], input[type="text"] {
-            padding: 5px; border-radius: 5px; border: 1px solid #ccc; font-family: inherit;
+            padding: 5px; border-radius: 5px; border: 1px solid #475569; font-family: inherit;
+            background: #1e293b; color: white;
         }
         .online-box {
-            background: #e0f2fe; padding: 10px; border-radius: 8px; border: 1px solid #bae6fd;
+            background: rgba(15, 30, 25, 0.8); padding: 10px; border-radius: 8px; border: 1px solid #1f3d2f;
             display: none; flex-direction: column; gap: 10px; margin-top: 10px;
         }
         
@@ -46,23 +52,24 @@
         .game-header {
             display: flex; justify-content: space-between; align-items: center; 
             width: 100%; max-width: 450px; margin-bottom: 10px;
-            background: rgba(0, 0, 0, 0.4); padding: 10px; border-radius: 10px; box-sizing: border-box;
+            background: rgba(0, 0, 0, 0.5); padding: 10px; border-radius: 10px; box-sizing: border-box;
+            border: 1px solid #334155;
         }
         .timer-box {
             background: #ef4444; color: white; padding: 8px 15px; border-radius: 20px;
-            font-size: 1.2rem; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.4);
+            font-size: 1.2rem; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.6);
             display: flex; align-items: center; gap: 5px; transition: background 0.3s;
         }
         .status { font-size: 1.2rem; font-weight: bold; text-align: center; flex-grow: 1; color: white; text-shadow: 1px 1px 2px black;}
         .alert-box { color: #ff6b6b; font-weight: bold; height: 24px; margin-bottom: 5px; font-size: 1.1rem; text-align: center; text-shadow: 1px 1px 2px black;}
         
         .board-container {
-            width: 100%; max-width: 450px; position: relative; margin-bottom: auto; /* یارمەتیدەرە بۆ پاڵنانی دوگمەکان بۆ خوارەوە */
+            width: 100%; max-width: 450px; position: relative; margin-bottom: auto;
         }
         .board {
             display: grid; grid-template-columns: repeat(8, 1fr); width: 100%; aspect-ratio: 1/1;
-            border: 8px solid #3a2212; box-shadow: 0 15px 30px rgba(0,0,0,0.6); /* سێبەری قووڵتر بۆ تەختەکە */
-            transition: transform 0.6s ease; border-radius: 4px;
+            border: 10px solid #382110; border-radius: 6px; box-shadow: 0 15px 35px rgba(0,0,0,0.8);
+            transition: transform 0.6s ease;
         }
         .board.flipped { transform: rotate(180deg); }
         .board.flipped .piece { transform: rotate(180deg); }
@@ -76,19 +83,19 @@
         
         .piece {
             width: 80%; height: 80%; border-radius: 50%;
-            box-shadow: inset 0 -5px 8px rgba(0,0,0,0.5), 0 4px 6px rgba(0,0,0,0.6);
+            box-shadow: inset 0 -5px 8px rgba(0,0,0,0.7), 0 4px 6px rgba(0,0,0,0.8);
             transition: all 0.2s ease; cursor: pointer;
-            display: flex; justify-content: center; align-items: center; border: 2px solid rgba(0,0,0,0.3);
+            display: flex; justify-content: center; align-items: center; border: 2px solid rgba(0,0,0,0.5);
             position: relative;
         }
         .piece.p1 { background-color: var(--player1-color); }
         .piece.p2 { background-color: var(--player2-color); }
         .piece.selected { transform: scale(1.15); box-shadow: 0 0 20px yellow; border: 2px solid yellow; z-index: 10; }
         
-        /* دیزاینی نوێی کینگ بە ئاڵای کوردستان و زێڕین */
+        /* دیزاینی کینگ بە ئاڵای کوردستان */
         .piece.king {
             border: 3px solid #FFD700 !important; 
-            box-shadow: 0 0 15px #FFD700, inset 0 -4px 6px rgba(0,0,0,0.5) !important; 
+            box-shadow: 0 0 15px #FFD700, inset 0 -4px 6px rgba(0,0,0,0.7) !important; 
         }
         .piece.king::after { 
             content: '☀️'; 
@@ -106,18 +113,22 @@
             text-shadow: 0px 0px 2px rgba(0,0,0,0.8);
         }
         
-        /* بەشی دوگمەکانی خوارەوە */
+        /* بەشی دوگمەکانی خوارەوە - دوورخراونەتەوە بۆ خوارەوە */
         .bottom-actions {
-            width: 100%; max-width: 450px; display: flex; flex-direction: column; gap: 10px; margin-top: 30px; margin-bottom: 20px;
+            width: 100%; max-width: 450px; 
+            display: flex; flex-direction: row; 
+            justify-content: space-between; gap: 10px; 
+            margin-top: 50px; 
+            margin-bottom: 20px;
         }
         .btn {
-            color: white; border: none; padding: 15px; border-radius: 8px; font-size: 1.1rem; 
-            cursor: pointer; width: 100%; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: all 0.2s;
+            color: white; border: none; padding: 12px 10px; border-radius: 10px; font-size: 1.1rem; 
+            cursor: pointer; width: 100%; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.4); transition: all 0.2s;
         }
-        .btn-blue { background-color: rgba(37, 99, 235, 0.8); padding: 10px; font-size: 0.9rem;} /* ڕیفرێش بچووکتر و کاڵتر دەبێت */
+        .btn-blue { background-color: #2563eb; font-size: 1rem;} 
         .btn-blue:active { background-color: #1d4ed8; }
-        .btn-green { background-color: #16a34a; font-size: 1.2rem;} 
-        .btn-orange { background-color: #d97706; font-size: 1.2rem;}
+        .btn-green { background-color: #16a34a; font-size: 1rem;} 
+        .btn-orange { background-color: #d97706; font-size: 1rem;}
     </style>
 </head>
 <body>
@@ -129,7 +140,7 @@
         </h2>
     </div>
 
-    <!-- بەشی هەڵبژاردنەکان کە ون دەبێت -->
+    <!-- بەشی هەڵبژاردنەکان -->
     <div class="controls-container" id="controlsPanel">
         <div class="control-group">
             <label>شێوازی یاری:</label>
@@ -146,23 +157,23 @@
         </div>
 
         <div class="online-box" id="onlineContainer">
-            <div style="font-size: 0.9rem; color: #0369a1; font-weight: bold;">کۆدەکەی خۆت بدە بە هاوڕێکەت، یان هی ئەو بنووسە.</div>
+            <div style="font-size: 0.9rem; color: #94a3b8; font-weight: bold;">کۆدەکەی خۆت بدە بە هاوڕێکەت، یان هی ئەو بنووسە.</div>
             <div style="display: flex; justify-content: space-between;">
                 <span>کۆدی تۆ:</span>
-                <strong id="myCode" style="font-size: 1.2rem; color: #b91c1c; letter-spacing: 2px;">دروستکردن...</strong>
+                <strong id="myCode" style="font-size: 1.2rem; color: #f87171; letter-spacing: 2px;">دروستکردن...</strong>
             </div>
             <div style="display: flex; gap: 5px;">
-                <input type="text" id="friendCode" placeholder="کۆدی هاوڕێکەت..." style="width: 60%; text-align: center; font-weight: bold; font-size: 1.1rem;">
+                <input type="text" id="friendCode" placeholder="کۆدی هاوڕێکەت..." style="width: 60%; text-align: center; font-weight: bold; font-size: 1.1rem; background: #334155;">
                 <button class="btn btn-green" style="width: 40%; padding: 5px;" onclick="connectToFriend()">بەستنەوە</button>
             </div>
-            <div id="onlineStatus" style="text-align: center; font-weight: bold; color: #047857;">چاوەڕوانی بەستنەوە...</div>
+            <div id="onlineStatus" style="text-align: center; font-weight: bold; color: #34d399;">چاوەڕوانی بەستنەوە...</div>
         </div>
 
         <div class="control-group" style="margin-top: 15px;">
             <label>بەردی ١ (خوارەوە):</label>
-            <input type="color" id="color1" value="#111111" onchange="updateColors()">
+            <input type="color" id="color1" value="#1a1a1a" onchange="updateColors()">
             <label>بەردی ٢ (سەرەوە):</label>
-            <input type="color" id="color2" value="#f8f9fa" onchange="updateColors()">
+            <input type="color" id="color2" value="#f1f1f1" onchange="updateColors()">
         </div>
     </div>
 
@@ -178,10 +189,10 @@
         <div class="board" id="board"></div>
     </div>
 
-    <!-- دوگمەکانی خوارەوە کە برانە خوارترین شوێن -->
+    <!-- دوگمەکانی خوارەوە -->
     <div class="bottom-actions">
-        <button id="togglePlayBtn" class="btn btn-green" onclick="togglePlay()">دەستپێکردنی یاری ▶️</button>
-        <button class="btn btn-blue" onclick="resetGame(true)">ڕیفرێشکردنەوەی تەختە 🔄</button>
+        <button id="togglePlayBtn" class="btn btn-green" onclick="togglePlay()">دەستپێکردن ▶️</button>
+        <button class="btn btn-blue" onclick="resetGame(true)">ڕیفرێش 🔄</button>
     </div>
 
     <script>
@@ -258,7 +269,7 @@
             isPlaying = !isPlaying;
             const btn = document.getElementById('togglePlayBtn');
             if (isPlaying) {
-                btn.innerText = "وەستاندنی یاری ⏸️"; btn.className = "btn btn-orange";
+                btn.innerText = "وەستاندن ⏸️"; btn.className = "btn btn-orange";
                 toggleUIElements(true); 
                 prepareTurn();
                 updateStatus(); startTimer();
@@ -268,7 +279,7 @@
                 btn.innerText = "دەستپێکردنەوە ▶️"; btn.className = "btn btn-green";
                 toggleUIElements(false); 
                 clearInterval(timerInterval);
-                document.getElementById('timerBox').style.background = "#9ca3af";
+                document.getElementById('timerBox').style.background = "#475569";
                 document.getElementById('status').innerText = "یاری وەستاوە...";
             }
         }
@@ -319,7 +330,7 @@
                 if(data.type === 'move') {
                     if(!isPlaying) { 
                         isPlaying = true; 
-                        document.getElementById('togglePlayBtn').innerText = "وەستاندنی یاری ⏸️"; 
+                        document.getElementById('togglePlayBtn').innerText = "وەستاندن ⏸️"; 
                         document.getElementById('togglePlayBtn').className = "btn btn-orange"; 
                         toggleUIElements(true);
                     }
@@ -506,7 +517,7 @@
         }
 
         function onCellClick(r, c, isHighlight) {
-            if (!isPlaying) return showAlert("تکایە سەرەتا کلیک لە 'دەستپێکردنی یاری' بکە!");
+            if (!isPlaying) return showAlert("تکایە سەرەتا کلیک لە 'دەستپێکردن' بکە!");
             const mode = document.getElementById('gameMode').value;
             if (mode === 'ai' && currentPlayer === 2) return;
             if (isOnline) { if (amIPlayer1 && currentPlayer === 2) return; if (!amIPlayer1 && currentPlayer === 1) return; }
@@ -541,7 +552,7 @@
             isPlaying = false; clearInterval(timerInterval);
             document.getElementById('togglePlayBtn').innerText = "یاری تەواو بوو 🏁";
             document.getElementById('togglePlayBtn').className = "btn btn-blue";
-            document.getElementById('timerBox').style.background = "#9ca3af";
+            document.getElementById('timerBox').style.background = "#475569";
             document.getElementById('timeDisplay').innerText = "کۆتایی";
             toggleUIElements(false); 
 
@@ -788,11 +799,11 @@
         function resetGame(broadcast = false) {
             if (broadcast && isOnline && conn) { conn.send({ type: 'reset' }); }
             isPlaying = false; clearInterval(timerInterval);
-            document.getElementById('timerBox').style.background = "#9ca3af";
+            document.getElementById('timerBox').style.background = "#475569";
             document.getElementById('timeDisplay').innerText = "--";
             
             const btn = document.getElementById('togglePlayBtn');
-            btn.innerText = "دەستپێکردنی یاری ▶️"; btn.className = "btn btn-green";
+            btn.innerText = "دەستپێکردن ▶️"; btn.className = "btn btn-green";
             document.getElementById('status').innerText = "چاوەڕێی دەستپێکردن..."; document.getElementById('status').style.color = "white";
             
             toggleUIElements(false); 
