@@ -145,13 +145,13 @@
         <div class="control-group">
             <label>شێوازی یاری:</label>
             <select id="gameMode" onchange="changeMode()">
+                <option value="ai" selected>کۆمپیوتەر (AI)</option>
                 <option value="pvp">دوو یاریزان (لەسەر یەک شاشە)</option>
-                <option value="ai">کۆمپیوتەر (AI)</option>
                 <option value="online">ئۆنلاین لەگەڵ هاوڕێ 🌐</option>
             </select>
         </div>
         
-        <div class="control-group" id="aiLevelContainer" style="display: none;">
+        <div class="control-group" id="aiLevelContainer" style="display: flex;">
             <label>ئاستی کۆمپیوتەر (بێ کۆتا قورس - 1000):</label>
             <input type="range" id="aiLevel" min="0" max="1000" value="1000">
         </div>
