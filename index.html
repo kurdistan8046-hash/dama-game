@@ -7,10 +7,8 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root {
-            /* ڕەنگەکانی بۆردەکە گەڕێندرانەوە بۆ شێوە دارێکی جوان و ڕوون */
-            --board-dark: #7a4b27; 
+            var(--board-dark): #7a4b27; 
             --board-light: #dcb38a; 
-            
             --player1-color: #1a1a1a; 
             --player2-color: #f1f1f1;
             --highlight: rgba(34, 197, 94, 0.7); 
@@ -18,17 +16,16 @@
         }
         body {
             font-family: 'Tahoma', sans-serif; 
-            /* باکگراوندی دەرەوە کرا بە سەوزێکی تاریکی نەرم کە چاو نائێشێنێت و تەرکیز تێک نادات */
             background: #15261b radial-gradient(circle at center, #223f2d 0%, #0a130d 100%);
             color: #f1f5f9;
             margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center;
-            touch-action: manipulation; min-height: 100vh;
+            touch-action: manipulation; min-height: 100vh; justify-content: flex-start;
         }
         .header { text-align: center; margin-bottom: 5px; transition: all 0.3s; }
         
         /* بەشی کۆنتڕۆڵەکان */
         .controls-container {
-            background: rgba(20, 30, 25, 0.85); padding: 15px; border-radius: 12px;
+            background: rgba(20, 30, 25, 0.85); padding: 10px; border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.6); width: 100%;
             max-width: 450px; margin-bottom: 10px; box-sizing: border-box;
             transition: all 0.4s ease-out; overflow: hidden; max-height: 1000px; 
@@ -64,20 +61,20 @@
         .alert-box { color: #ff6b6b; font-weight: bold; height: 24px; margin-bottom: 5px; font-size: 1.1rem; text-align: center; text-shadow: 1px 1px 2px black;}
         
         .board-container {
-            width: 100%; max-width: 450px; position: relative; margin-bottom: auto;
+            width: 100%; max-width: 450px; position: relative; margin-bottom: 5px;
         }
         .board {
             display: grid; grid-template-columns: repeat(8, 1fr); width: 100%; aspect-ratio: 1/1;
             border: 10px solid #382110; border-radius: 6px; box-shadow: 0 15px 35px rgba(0,0,0,0.8);
-            transition: transform 0.6s ease;
+            transition: transform 0.6s ease; background-color: #dcb38a;
         }
         .board.flipped { transform: rotate(180deg); }
         .board.flipped .piece { transform: rotate(180deg); }
         .board.flipped .piece.selected { transform: rotate(180deg) scale(1.15); }
 
         .cell { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; position: relative; }
-        .cell.dark { background-color: var(--board-dark); }
-        .cell.light { background-color: var(--board-light); }
+        .cell.dark { background-color: #7a4b27; }
+        .cell.light { background-color: #dcb38a; }
         .cell.highlight { background-color: var(--highlight); cursor: pointer; border: 3px solid #16a34a; box-sizing: border-box; }
         .cell.highlight-danger { background-color: var(--danger); cursor: pointer; border: 3px solid #ff4444; box-sizing: border-box; }
         
@@ -92,7 +89,6 @@
         .piece.p2 { background-color: var(--player2-color); }
         .piece.selected { transform: scale(1.15); box-shadow: 0 0 20px yellow; border: 2px solid yellow; z-index: 10; }
         
-        /* دیزاینی کینگ بە ئاڵای کوردستان */
         .piece.king {
             border: 3px solid #FFD700 !important; 
             box-shadow: 0 0 15px #FFD700, inset 0 -4px 6px rgba(0,0,0,0.7) !important; 
@@ -113,12 +109,12 @@
             text-shadow: 0px 0px 2px rgba(0,0,0,0.8);
         }
         
-        /* بەشی دوگمەکانی خوارەوە - دوورخراونەتەوە بۆ خوارەوە */
+        /* کێشەی نەبوونی دوگمەکان لێرە چارەسەر کرا */
         .bottom-actions {
             width: 100%; max-width: 450px; 
             display: flex; flex-direction: row; 
             justify-content: space-between; gap: 10px; 
-            margin-top: 50px; 
+            margin-top: 15px; 
             margin-bottom: 20px;
         }
         .btn {
