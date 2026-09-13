@@ -2,74 +2,102 @@
 <html lang="ku" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>ئەپی کوردستان - دامە (مستەوای 1000)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root {
-            /* ڕەنگەکانی بۆردەکە گەڕێندرانەوە بۆ شێوە دارێکی جوان و ڕوون */
             --board-dark: #7a4b27; 
             --board-light: #dcb38a; 
-            
             --player1-color: #1a1a1a; 
             --player2-color: #f1f1f1;
             --highlight: rgba(34, 197, 94, 0.7); 
             --danger: rgba(239, 68, 68, 0.7);
         }
+
+        /* فیکس کردنی تەواوەتی شاشەکە بۆ ئەوەی سکرۆڵ نەکات */
+        html, body {
+            width: 100%;
+            height: 100%;
+            height: 100dvh; /* داینامیک ڤیوپۆرت بۆ مۆبایل */
+            overflow: hidden !important;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            touch-action: none; /* ڕێگری لە سکرۆڵ و ڕاکێشانی شاشە */
+            -webkit-user-select: none;
+            user-select: none; /* ڕێگری لە دیاریکردنی تێکستەکان */
+        }
+
         body {
             font-family: 'Tahoma', sans-serif; 
-            /* باکگراوندی دەرەوە کرا بە سەوزێکی تاریکی نەرم کە چاو نائێشێنێت و تەرکیز تێک نادات */
             background: #15261b radial-gradient(circle at center, #223f2d 0%, #0a130d 100%);
             color: #f1f5f9;
-            margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center;
-            touch-action: manipulation; min-height: 100vh;
+            margin: 0; 
+            padding: 8px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center;
+            justify-content: space-between;
+            box-sizing: border-box;
         }
-        .header { text-align: center; margin-bottom: 5px; transition: all 0.3s; }
+
+        .header { text-align: center; margin-bottom: 2px; transition: all 0.3s; flex-shrink: 0; }
         
         /* بەشی کۆنتڕۆڵەکان */
         .controls-container {
-            background: rgba(20, 30, 25, 0.85); padding: 15px; border-radius: 12px;
+            background: rgba(20, 30, 25, 0.95); padding: 12px; border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.6); width: 100%;
-            max-width: 450px; margin-bottom: 10px; box-sizing: border-box;
-            transition: all 0.4s ease-out; overflow: hidden; max-height: 1000px; 
-            border: 1px solid #2d4a3e;
+            max-width: 420px; box-sizing: border-box;
+            transition: all 0.3s ease-out; overflow-y: auto; max-height: 60vh; 
+            border: 1px solid #2d4a3e; flex-shrink: 0;
         }
         .controls-container.hidden {
-            max-height: 0; padding: 0; margin: 0; opacity: 0; border: none;
+            display: none !important;
         }
 
-        .control-group { margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; color: #e2e8f0; font-weight: bold;}
+        .control-group { margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; color: #e2e8f0; font-weight: bold;}
         select, input[type="color"], input[type="range"], input[type="text"] {
             padding: 5px; border-radius: 5px; border: 1px solid #475569; font-family: inherit;
             background: #1e293b; color: white;
         }
         .online-box {
-            background: rgba(15, 30, 25, 0.8); padding: 10px; border-radius: 8px; border: 1px solid #1f3d2f;
-            display: none; flex-direction: column; gap: 10px; margin-top: 10px;
+            background: rgba(15, 30, 25, 0.8); padding: 8px; border-radius: 8px; border: 1px solid #1f3d2f;
+            display: none; flex-direction: column; gap: 8px; margin-top: 8px;
         }
         
         /* شاشەی یارییەکە */
         .game-header {
             display: flex; justify-content: space-between; align-items: center; 
-            width: 100%; max-width: 450px; margin-bottom: 10px;
-            background: rgba(0, 0, 0, 0.5); padding: 10px; border-radius: 10px; box-sizing: border-box;
-            border: 1px solid #334155;
+            width: 100%; max-width: 420px; margin-bottom: 4px;
+            background: rgba(0, 0, 0, 0.5); padding: 6px 12px; border-radius: 10px; box-sizing: border-box;
+            border: 1px solid #334155; flex-shrink: 0;
         }
         .timer-box {
-            background: #ef4444; color: white; padding: 8px 15px; border-radius: 20px;
-            font-size: 1.2rem; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.6);
+            background: #ef4444; color: white; padding: 4px 12px; border-radius: 20px;
+            font-size: 1.1rem; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.6);
             display: flex; align-items: center; gap: 5px; transition: background 0.3s;
         }
-        .status { font-size: 1.2rem; font-weight: bold; text-align: center; flex-grow: 1; color: white; text-shadow: 1px 1px 2px black;}
-        .alert-box { color: #ff6b6b; font-weight: bold; height: 24px; margin-bottom: 5px; font-size: 1.1rem; text-align: center; text-shadow: 1px 1px 2px black;}
+        .status { font-size: 1.1rem; font-weight: bold; text-align: center; flex-grow: 1; color: white; text-shadow: 1px 1px 2px black;}
+        .alert-box { color: #ff6b6b; font-weight: bold; min-height: 20px; font-size: 1rem; text-align: center; text-shadow: 1px 1px 2px black; flex-shrink: 0;}
         
+        /* چوارگۆشەی بۆردەکە - بڕین و داڕشتنەوە بۆ ئەوەی ڕێک لە شاشەدا بنیشێت */
         .board-container {
-            width: 100%; max-width: 450px; position: relative; margin-bottom: auto;
+            width: 100%; 
+            max-width: 420px; 
+            max-height: 52vh;
+            aspect-ratio: 1/1; 
+            position: relative; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-grow: 1;
         }
         .board {
-            display: grid; grid-template-columns: repeat(8, 1fr); width: 100%; aspect-ratio: 1/1;
-            border: 10px solid #382110; border-radius: 6px; box-shadow: 0 15px 35px rgba(0,0,0,0.8);
+            display: grid; grid-template-columns: repeat(8, 1fr); 
+            width: 100%; height: 100%; aspect-ratio: 1/1;
+            border: 8px solid #382110; border-radius: 6px; box-shadow: 0 10px 25px rgba(0,0,0,0.8);
             transition: transform 0.6s ease;
+            box-sizing: border-box;
         }
         .board.flipped { transform: rotate(180deg); }
         .board.flipped .piece { transform: rotate(180deg); }
@@ -78,32 +106,32 @@
         .cell { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; position: relative; }
         .cell.dark { background-color: var(--board-dark); }
         .cell.light { background-color: var(--board-light); }
-        .cell.highlight { background-color: var(--highlight); cursor: pointer; border: 3px solid #16a34a; box-sizing: border-box; }
-        .cell.highlight-danger { background-color: var(--danger); cursor: pointer; border: 3px solid #ff4444; box-sizing: border-box; }
+        .cell.highlight { background-color: var(--highlight); cursor: pointer; border: 2px solid #16a34a; box-sizing: border-box; }
+        .cell.highlight-danger { background-color: var(--danger); cursor: pointer; border: 2px solid #ff4444; box-sizing: border-box; }
         
         .piece {
-            width: 80%; height: 80%; border-radius: 50%;
-            box-shadow: inset 0 -5px 8px rgba(0,0,0,0.7), 0 4px 6px rgba(0,0,0,0.8);
+            width: 82%; height: 82%; border-radius: 50%;
+            box-shadow: inset 0 -4px 6px rgba(0,0,0,0.7), 0 3px 5px rgba(0,0,0,0.8);
             transition: all 0.2s ease; cursor: pointer;
             display: flex; justify-content: center; align-items: center; border: 2px solid rgba(0,0,0,0.5);
             position: relative;
         }
         .piece.p1 { background-color: var(--player1-color); }
         .piece.p2 { background-color: var(--player2-color); }
-        .piece.selected { transform: scale(1.15); box-shadow: 0 0 20px yellow; border: 2px solid yellow; z-index: 10; }
+        .piece.selected { transform: scale(1.12); box-shadow: 0 0 15px yellow; border: 2px solid yellow; z-index: 10; }
         
         /* دیزاینی کینگ بە ئاڵای کوردستان */
         .piece.king {
-            border: 3px solid #FFD700 !important; 
-            box-shadow: 0 0 15px #FFD700, inset 0 -4px 6px rgba(0,0,0,0.7) !important; 
+            border: 2px solid #FFD700 !important; 
+            box-shadow: 0 0 12px #FFD700, inset 0 -4px 6px rgba(0,0,0,0.7) !important; 
         }
         .piece.king::after { 
             content: '☀️'; 
-            font-size: 14px;
+            font-size: 12px;
             position: absolute;
             background: linear-gradient(to bottom, #ED2024 33.3%, #FFFFFF 33.3%, #FFFFFF 66.6%, #278E43 66.6%); 
-            width: 26px;
-            height: 26px;
+            width: 22px;
+            height: 22px;
             border-radius: 50%;
             display: flex;
             justify-content: center;
@@ -113,28 +141,29 @@
             text-shadow: 0px 0px 2px rgba(0,0,0,0.8);
         }
         
-        /* بەشی دوگمەکانی خوارەوە - دوورخراونەتەوە بۆ خوارەوە */
+        /* بەشی دوگمەکانی خوارەوە - دوورخستنەوە لە مارژینی زۆر */
         .bottom-actions {
-            width: 100%; max-width: 450px; 
+            width: 100%; max-width: 420px; 
             display: flex; flex-direction: row; 
             justify-content: space-between; gap: 10px; 
-            margin-top: 50px; 
-            margin-bottom: 20px;
+            margin-top: 5px; 
+            margin-bottom: 5px;
+            flex-shrink: 0;
         }
         .btn {
-            color: white; border: none; padding: 12px 10px; border-radius: 10px; font-size: 1.1rem; 
+            color: white; border: none; padding: 10px 8px; border-radius: 10px; font-size: 1rem; 
             cursor: pointer; width: 100%; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.4); transition: all 0.2s;
         }
-        .btn-blue { background-color: #2563eb; font-size: 1rem;} 
+        .btn-blue { background-color: #2563eb;} 
         .btn-blue:active { background-color: #1d4ed8; }
-        .btn-green { background-color: #16a34a; font-size: 1rem;} 
-        .btn-orange { background-color: #d97706; font-size: 1rem;}
+        .btn-green { background-color: #16a34a;} 
+        .btn-orange { background-color: #d97706;}
     </style>
 </head>
 <body>
 
     <div class="header" id="mainHeader">
-        <h2 style="margin: 5px 0; font-size: 2.2rem; font-weight: 900; background: rgba(0,0,0,0.3); padding: 5px 15px; border-radius: 15px; display: inline-block;">
+        <h2 style="margin: 2px 0; font-size: 1.8rem; font-weight: 900; background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 12px; display: inline-block;">
             <span style="color: white; text-shadow: 1px 1px 2px #000;">دامەی </span>
             <span style="color: #ED2024; text-shadow: 1px 1px 1px #000;">ک</span><span style="color: #ED2024; text-shadow: 1px 1px 1px #000;">و</span><span style="color: #FEBD11; text-shadow: 1px 1px 1px #000;">ر</span><span style="color: #FEBD11; text-shadow: 1px 1px 1px #000;">د</span><span style="color: #FFFFFF; text-shadow: 1px 1px 2px #000;">س</span><span style="color: #FFFFFF; text-shadow: 1px 1px 2px #000;">ت</span><span style="color: #278E43; text-shadow: 1px 1px 1px #000;">ا</span><span style="color: #278E43; text-shadow: 1px 1px 1px #000;">ن</span>
         </h2>
@@ -152,24 +181,24 @@
         </div>
         
         <div class="control-group" id="aiLevelContainer" style="display: flex;">
-            <label>ئاستی کۆمپیوتەر (بێ کۆتا قورس - 1000):</label>
+            <label>ئاستی کۆمپیوتەر (1000):</label>
             <input type="range" id="aiLevel" min="0" max="1000" value="1000">
         </div>
 
         <div class="online-box" id="onlineContainer">
-            <div style="font-size: 0.9rem; color: #94a3b8; font-weight: bold;">کۆدەکەی خۆت بدە بە هاوڕێکەت، یان هی ئەو بنووسە.</div>
+            <div style="font-size: 0.85rem; color: #94a3b8; font-weight: bold;">کۆدەکەی خۆت بدە بە هاوڕێکەت، یان هی ئەو بنووسە.</div>
             <div style="display: flex; justify-content: space-between;">
                 <span>کۆدی تۆ:</span>
-                <strong id="myCode" style="font-size: 1.2rem; color: #f87171; letter-spacing: 2px;">دروستکردن...</strong>
+                <strong id="myCode" style="font-size: 1.1rem; color: #f87171; letter-spacing: 2px;">دروستکردن...</strong>
             </div>
             <div style="display: flex; gap: 5px;">
-                <input type="text" id="friendCode" placeholder="کۆدی هاوڕێکەت..." style="width: 60%; text-align: center; font-weight: bold; font-size: 1.1rem; background: #334155;">
+                <input type="text" id="friendCode" placeholder="کۆدی هاوڕێکەت..." style="width: 60%; text-align: center; font-weight: bold; font-size: 1rem; background: #334155;">
                 <button class="btn btn-green" style="width: 40%; padding: 5px;" onclick="connectToFriend()">بەستنەوە</button>
             </div>
-            <div id="onlineStatus" style="text-align: center; font-weight: bold; color: #34d399;">چاوەڕوانی بەستنەوە...</div>
+            <div id="onlineStatus" style="text-align: center; font-weight: bold; color: #34d399; font-size: 0.9rem;">چاوەڕوانی بەستنەوە...</div>
         </div>
 
-        <div class="control-group" style="margin-top: 15px;">
+        <div class="control-group" style="margin-top: 10px;">
             <label>بەردی ١ (خوارەوە):</label>
             <input type="color" id="color1" value="#1a1a1a" onchange="updateColors()">
             <label>بەردی ٢ (سەرەوە):</label>
@@ -196,6 +225,12 @@
     </div>
 
     <script>
+        // ڕێگری لە هەر جوڵەیەکی Touch Drag لەسەر مۆبایل
+        document.addEventListener('touchmove', function(e) {
+            if (e.target.closest('#controlsPanel')) return; // ڕێگەدان بە سکرۆڵ تەنها لەناو مێنیوی بەشەکان
+            e.preventDefault();
+        }, { passive: false });
+
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx;
 
@@ -258,10 +293,10 @@
             const header = document.getElementById('mainHeader');
             if (hide) {
                 panel.classList.add('hidden');
-                header.style.fontSize = "1.5rem"; 
+                header.style.fontSize = "1.2rem"; 
             } else {
                 panel.classList.remove('hidden');
-                header.style.fontSize = "2.2rem";
+                header.style.fontSize = "1.8rem";
             }
         }
 
